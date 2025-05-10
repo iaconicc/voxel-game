@@ -1,4 +1,5 @@
 #include "Exceptions.h"
+#include <strsafe.h>
 
 WCHAR ExceptionMessage[512];
 
@@ -7,14 +8,14 @@ WCHAR* GetExceptionMessage()
 	return &ExceptionMessage;
 }
 
-void formatMsg(char* file, int line, WCHAR* msg)
+void formatMsg(WCHAR* file, int line, WCHAR* msg)
 {
-	//converting file name to wchar
-	int convertedchars = 0;
-	const int newsize = strlen(file);
-	WCHAR filewchar[128];
-	mbstowcs_s(&convertedchars, filewchar, newsize, file, 128);
-	
-	lstrcpyW(ExceptionMessage, L"FILE: ");
-	//lstrcpyW(ExceptionMessage + 6, filewchar);
+	HRESULT result = StringCchPrintfW(
+		ExceptionMessage,
+		512,
+		L"FILE: %s\nLINE: %u\nDESC: %s",
+		file,
+		line,
+		msg
+	);
 }

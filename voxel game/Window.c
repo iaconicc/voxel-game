@@ -20,9 +20,9 @@ HWND CreateWindowInstance(HINSTANCE hInstance)
 	wc.lpszMenuName = NULL;
 	wc.lpszClassName = className;
 	wc.hIconSm = NULL;
-	RegisterClassEx(&wc);
+	RegisterClassExW(&wc);
 
-	/*HWND hwnd = CreateWindowEx(
+	HWND hwnd = CreateWindowEx(
 		0,
 		className,
 		L"Voxel Game",
@@ -32,8 +32,8 @@ HWND CreateWindowInstance(HINSTANCE hInstance)
 		NULL,
 		hInstance,
 		NULL
-	);*/
-	HWND hwnd = 0;
+	);
+
 	if (hwnd == NULL)
 	{
 		Exception(RC_WNDException, L"The window failed to create");
