@@ -3,9 +3,13 @@
 #include "ReturnCodes.h"
 
 WCHAR* GetExceptionMessage();
-void formatMsg(char* file, int line, WCHAR* msg);
+void formatMsg(WCHAR* file, int line, WCHAR* msg);
 
-#define Exception(type, msg) PostQuitMessage(type); formatMsg(__FILE__,__LINE__, msg);
+#define WIDE2(x) L##x
+#define WIDE1(x) WIDE2(x)
+#define WFILE WIDE1(__FILE__)
+
+#define Exception(type, msg) PostQuitMessage(type); formatMsg(WFILE, __LINE__, msg);
 
 
 

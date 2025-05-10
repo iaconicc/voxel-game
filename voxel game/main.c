@@ -6,8 +6,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
 
 	 int returnStatus = ApplicationStart(hInstance);
 
-	
-
 	 switch (returnStatus)
 	 {
 	 case RC_NORMAL:
@@ -16,7 +14,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
 		 MessageBoxW(NULL, GetExceptionMessage(), L"WndException", MB_OK);
 		 return returnStatus;
 	 default:
-		 -1;
+		 return -1;
 	 }
 	 
 }
