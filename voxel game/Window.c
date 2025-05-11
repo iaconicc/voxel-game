@@ -1,9 +1,12 @@
 #include "window.h"
+#include "keyboard.h"
 #include "Exceptions.h"
+#include "resource.h"
+#include <stdint.h>
 
 LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
-HWND CreateWindowInstance(HINSTANCE hInstance)
+HWND CreateWindowInstance(HINSTANCE hInstance, int width, int height, WCHAR* name)
 {
 	WNDCLASSEX wc;
 	const WCHAR* className = L"VoxelGameClass";
@@ -14,20 +17,24 @@ HWND CreateWindowInstance(HINSTANCE hInstance)
 	wc.cbClsExtra = 0;
 	wc.cbWndExtra = 0;
 	wc.hInstance = hInstance;
-	wc.hIcon = NULL;
+	wc.hIcon = LoadImage(hInstance, MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 256, 256, 0);
 	wc.hCursor = NULL;
 	wc.hbrBackground = NULL;
 	wc.lpszMenuName = NULL;
 	wc.lpszClassName = className;
-	wc.hIconSm = NULL;
-	RegisterClassExW(&wc);
+	wc.hIconSm = LoadImage(hInstance, MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 64, 64, 0);
+	
+	if (!RegisterClassExW(&wc)) {
+		LogException(RC_WND_EXCEPTIOM, L"Window class registration error occured while the application was running.");
+		return NULL;
+	}
 
 	HWND hwnd = CreateWindowEx(
 		0,
 		className,
-		L"Voxel Game",
+		name,
 		WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU,
-		CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
+		CW_USEDEFAULT, CW_USEDEFAULT, width, height,
 		NULL,
 		NULL,
 		hInstance,
@@ -36,7 +43,7 @@ HWND CreateWindowInstance(HINSTANCE hInstance)
 
 	if (hwnd == NULL)
 	{
-		Exception(RC_WNDException, L"The window failed to create");
+		LogException(RC_WND_EXCEPTIOM, L"Window creation error occurred while the application was running.");
 		return NULL;
 	}
 
@@ -45,16 +52,52 @@ HWND CreateWindowInstance(HINSTANCE hInstance)
 	return hwnd;
 }
 
+typedef struct
+{
+	void (*OnKeyPressed)(uint8_t virtualKey);
+	void (*OnKeyReleased)(uint8_t virtualKey);
+	void (*OnChar)(WCHAR character);
+	void (*ClearState)();
+}keyboardOps;
+
+keyboardOps* keyboardops;
+
 LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (Msg)
 	{
+	case WM_CREATE:
+		keyboardops = InitKeyboardModuleAndGetOwnership();
+		break;
+	case WM_SYSKEYDOWN:
+	case WM_KEYDOWN:
+		if (!(lParam & 0x40000000) || isAutoRepeatEnabled())
+		{
+			if (keyboardops)
+			{
+				keyboardops->OnKeyPressed(wParam);
+				break;
+			}
+		}
+	case WM_SYSKEYUP:
+	case WM_KEYUP:
+		if (keyboardops)
+		{
+			keyboardops->OnKeyReleased(wParam);
+		}
+		break;	
+	case WM_KILLFOCUS:
+		if (keyboardops)
+		{
+			keyboardops->ClearState();
+		}
 	case WM_CLOSE:
 		PostQuitMessage(1);
+		DestroyKeyboardModuleAndRevokeOwnership();
 		break;
 	}
 
-	DefWindowProc(hWnd, Msg, wParam, lParam);
+	return DefWindowProc(hWnd, Msg, wParam, lParam);
 }
 
 int ProcessMessages()
@@ -70,9 +113,6 @@ int ProcessMessages()
 
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
-
-
-
 	}
 
 	return 0;
