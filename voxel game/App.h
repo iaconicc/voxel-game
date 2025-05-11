@@ -1,4 +1,4 @@
 #pragma once
 #include <windows.h>
 
-int ApplicationStart(HINSTANCE hinstance);
+int ApplicationStartAndRun(HINSTANCE hinstance, int width, int height, WCHAR* name);

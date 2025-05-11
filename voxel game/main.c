@@ -2,19 +2,10 @@
 #include "ReturnCodes.h"
 #include "Exceptions.h"
 
-WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-
-	 int returnStatus = ApplicationStart(hInstance);
-
-	 switch (returnStatus)
-	 {
-	 case RC_NORMAL:
-		 return 0;
-	 case RC_WNDException:
-		 MessageBoxW(NULL, GetExceptionMessage(), L"WndException", MB_OK);
-		 return returnStatus;
-	 default:
-		 return -1;
-	 }
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 	 
+	 //inits program then runs until program exits or has exception
+	 int returnStatus = ApplicationStartAndRun(hInstance, 800, 600, L"voxel game engine");
+	 
+	 return returnStatus;
 }
