@@ -133,6 +133,7 @@
     <ClCompile Include="FIFO.c" />
     <ClCompile Include="keyboard.c" />
     <ClCompile Include="main.c" />
+    <ClCompile Include="ReturnCodes.c" />
     <ClCompile Include="Window.c" />
   </ItemGroup>
   <ItemGroup>
