@@ -1,8 +1,13 @@
 #include "window.h"
 #include "keyboard.h"
-#include "Exceptions.h"
+
+#define MODULE L"Wnd"
+#include "Logger.h"
+
 #include "resource.h"
 #include <stdint.h>
+
+
 
 LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
@@ -24,10 +29,12 @@ HWND CreateWindowInstance(HINSTANCE hInstance, int width, int height, WCHAR* nam
 	wc.lpszClassName = className;
 	wc.hIconSm = LoadImage(hInstance, MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 64, 64, 0);
 	
+	
 	if (!RegisterClassExW(&wc)) {
 		LogException(RC_WND_EXCEPTIOM, L"Window class registration error occured while the application was running.");
 		return NULL;
 	}
+	LogDebug(L"Registered window class with name: %s and style: 0x%x", wc.lpszClassName, wc.style);
 
 	HWND hwnd = CreateWindowEx(
 		0,
@@ -46,6 +53,7 @@ HWND CreateWindowInstance(HINSTANCE hInstance, int width, int height, WCHAR* nam
 		LogException(RC_WND_EXCEPTIOM, L"Window creation error occurred while the application was running.");
 		return NULL;
 	}
+	LogDebug(L"window created with handle: 0x%x", hwnd);
 
 	ShowWindow(hwnd, SW_SHOW);
 
@@ -68,6 +76,10 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 	{
 	case WM_CREATE:
 		keyboardops = InitKeyboardModuleAndGetOwnership();
+		if (!keyboardops)
+		{
+			LogException(RC_WND_EXCEPTIOM, L"wnd failed to get keyboard module");
+		}
 		break;
 	case WM_SYSKEYDOWN:
 	case WM_KEYDOWN:
@@ -93,7 +105,7 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 		}
 	case WM_CLOSE:
 		PostQuitMessage(1);
-		DestroyKeyboardModuleAndRevokeOwnership();
+		DestroyKeyboardModuleAndRevokeOwnership(&keyboardops);
 		break;
 	}
 

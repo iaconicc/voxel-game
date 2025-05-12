@@ -1,7 +1,9 @@
 #include "keyboard.h"
 #include "bitfield.h"
 #include "FIFO.h"
-#include "Exceptions.h"
+
+#define MODULE L"kbd"
+#include "Logger.h"
 
 bool keyboardIsOwned = false;
 bool AutoRepeatEnabled = false;
@@ -75,19 +77,19 @@ void* InitKeyboardModuleAndGetOwnership()
 
 	if (!keystates)
 	{
-		Exception(RC_KBD_EXCEPTIOM, L"An exception occured while creating keystates bitmap");
+		LogException(RC_KBD_EXCEPTIOM, L"An exception occured while creating keystates bitmap");
 		return NULL;
 	}
 
 	if (!characterFifo)
 	{
-		Exception(RC_KBD_EXCEPTIOM, L"An exception occured while creating character buffer");
+		LogException(RC_KBD_EXCEPTIOM, L"An exception occured while creating character buffer");
 		return NULL;
 	}
 
 	if (!keyevents)
 	{
-		Exception(RC_KBD_EXCEPTIOM, L"An exception occured while creating key events buffer");
+		LogException(RC_KBD_EXCEPTIOM, L"An exception occured while creating key events buffer");
 		return NULL;
 	}
 
@@ -159,12 +161,13 @@ void FlushKeys()
 {
 	FlushFIFO(&keyevents);
 }
-void DestroyKeyboardModuleAndRevokeOwnership()
+void DestroyKeyboardModuleAndRevokeOwnership(void** ops)
 {
 	if (!keyboardIsOwned)
 		return;
 
 	keyboardIsOwned = false;
+	*ops = NULL;
 	DestroyBitField(&keystates);
 	DestroyFIFO(&characterFifo);
 	DestroyFIFO(&keyevents);

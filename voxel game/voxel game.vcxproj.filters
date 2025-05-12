@@ -36,6 +36,9 @@
     <ClCompile Include="FIFO.c">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="ReturnCodes.c">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="window.h">

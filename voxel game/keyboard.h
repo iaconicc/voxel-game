@@ -32,4 +32,4 @@ void FlushCharacters();
 bool isAutoRepeatEnabled();
 void AutoRepeatEnable(bool enable);
 
-void DestroyKeyboardModuleAndRevokeOwnership();
+void DestroyKeyboardModuleAndRevokeOwnership(void** ops);
