@@ -131,6 +131,9 @@ void __LogException(WCHAR* file, int line,int type, WCHAR* module, WCHAR* fmt, .
 	case RC_KBD_EXCEPTION:
 		stringtype = L"kbdException";
 		break;
+	case RC_MOUSE_EXCEPTION:
+		stringtype = L"mouseException";
+		break;
 	default:
 		stringtype = L"unknown";
 		break;

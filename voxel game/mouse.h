@@ -28,7 +28,20 @@ typedef struct {
 	uint8_t type; //this is event type use the enum above
 }MouseEvent;
 
-void* InitMouseModuleAndGetOwnership();
+typedef struct {
+	void (*OnMouseMove)(uint16_t x, uint16_t y);
+	void (*OnLeftPressed)(uint16_t x, uint16_t y);
+	void (*OnLeftReleased)(uint16_t x, uint16_t y);
+	void (*OnRightPressed)(uint16_t x, uint16_t y);
+	void (*OnRightReleased)(uint16_t x, uint16_t y);
+	void (*OnWheelUp)(uint16_t x, uint16_t y);
+	void (*OnWheelDown)(uint16_t x, uint16_t y);
+	void (*OnMiddlePressed)(uint16_t x, uint16_t y);
+	void (*OnMiddleReleased)(uint16_t x, uint16_t y);
+	void (*ClearState)();
+}MouseOps;
+
+bool InitMouseModuleAndGetOwnership(MouseOps** ops);
 
 uint8_t GetMouseStates(); //this uses the mouse state enum
 uint16_t GetMouseX();
@@ -40,4 +53,4 @@ bool isMouseBufferEmpty();
 
 void FlushMouseEvents();
 
-void DestroyMouseModuleAndRevokeOwnership(void** MouseOpsPtr);
+void DestroyMouseModuleAndRevokeOwnership(MouseOps** MouseOpsPtr);

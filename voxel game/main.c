@@ -4,7 +4,6 @@
 #define MODULE L"Main"
 #include "Logger.h"
 
-
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
 	//initialises the logger the program will not start without it
 	if (StartLogger() != 0) {

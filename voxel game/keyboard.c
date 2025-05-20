@@ -16,25 +16,22 @@ BitField* keystates = NULL;
 FIFO* keyevents = NULL;
 FIFO* characterFifo = NULL;
 
-typedef struct
-{
-	void (*OnKeyPressed)(uint8_t virtualKey);
-	void (*OnKeyReleased)(uint8_t virtualKey);
-	void (*OnChar)(WCHAR character);
-	void (*ClearState)();
-}keyboardOps;
-
-keyboardOps ops;
-
 static void OnKeyPressed(uint8_t virtualKey);
 static void OnKeyReleased(uint8_t virtualKey);
 static void OnChar(WCHAR character);
 static void ClearState();
 
-void* InitKeyboardModuleAndGetOwnership()
+keyboardOps keyOps = {
+	.ClearState = ClearState,
+	.OnChar = OnChar,
+	.OnKeyPressed = OnKeyPressed,
+	.OnKeyReleased = OnKeyReleased,
+};
+
+bool InitKeyboardModuleAndGetOwnership(keyboardOps** ops)
 {
 	if (keyboardIsOwned)
-		return NULL;
+		return false;
 
 	InitBitField(&keystates, KEYSTATESSIZE);
 	InitFIFO(&characterFifo, CHARACTERFIFOSIZE, sizeof(WCHAR));
@@ -49,7 +46,7 @@ void* InitKeyboardModuleAndGetOwnership()
 			DestroyFIFO(&keyevents);
 
 		LogException(RC_KBD_EXCEPTION, L"An exception occured while creating keystates bitmap");
-		return NULL;
+		return false;
 	}
 
 	if (!characterFifo)
@@ -60,7 +57,7 @@ void* InitKeyboardModuleAndGetOwnership()
 			DestroyFIFO(&keyevents);
 
 		LogException(RC_KBD_EXCEPTION, L"An exception occured while creating character buffer");
-		return NULL;
+		return false;
 	}
 
 	if (!keyevents)
@@ -69,18 +66,20 @@ void* InitKeyboardModuleAndGetOwnership()
 		DestroyFIFO(&characterFifo);
 
 		LogException(RC_KBD_EXCEPTION, L"An exception occured while creating key events buffer");
-		return NULL;
+		return false;
 	}
 
 	keyboardIsOwned = true;
 
-	ops.OnKeyPressed = OnKeyPressed;
-	ops.OnKeyReleased = OnKeyReleased;
-	ops.OnChar = OnChar;
-	ops.ClearState = ClearState;
+	keyOps.OnKeyPressed = OnKeyPressed;
+	keyOps.OnKeyReleased = OnKeyReleased;
+	keyOps.OnChar = OnChar;
+	keyOps.ClearState = ClearState;
+
+	(*ops) = &keyOps;
 
 	LogInfo(L"keyboard module initiliased with no issues.");
-	return &ops;
+	return true;
 }
 
 static void OnKeyPressed(uint8_t virtualKey)
@@ -191,12 +190,12 @@ void FlushKeys()
 	LogDebug(L"Key events buffer flushed.");
 }
 
-void DestroyKeyboardModuleAndRevokeOwnership(void** keyboardOpsPtr)
+void DestroyKeyboardModuleAndRevokeOwnership(keyboardOps** keyboardOpsPtr)
 {
 	if (!keyboardIsOwned)
 		return;
 
-	if (*keyboardOpsPtr != &ops)
+	if (*keyboardOpsPtr != &keyOps)
 		return;
 
 	keyboardIsOwned = false;

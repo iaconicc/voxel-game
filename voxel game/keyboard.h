@@ -15,7 +15,15 @@ typedef struct {
 	uint8_t type; //this is event type use the enum above
 }KeyEvent;
 
-void* InitKeyboardModuleAndGetOwnership();
+typedef struct
+{
+	void (*OnKeyPressed)(uint8_t virtualKey);
+	void (*OnKeyReleased)(uint8_t virtualKey);
+	void (*OnChar)(WCHAR character);
+	void (*ClearState)();
+}keyboardOps;
+
+bool InitKeyboardModuleAndGetOwnership(keyboardOps** ops);
 
 bool keyIsPressed(uint8_t virtualkey);
 KeyEvent ReadKey();
@@ -32,4 +40,4 @@ void FlushCharacters();
 bool isAutoRepeatEnabled();
 void AutoRepeatEnable(bool enable);
 
-void DestroyKeyboardModuleAndRevokeOwnership(void** ops);
+void DestroyKeyboardModuleAndRevokeOwnership(keyboardOps** keyboardOpsPtr);

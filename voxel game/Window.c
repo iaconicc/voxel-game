@@ -1,13 +1,12 @@
 #include "window.h"
 #include "keyboard.h"
+#include "mouse.h"
 
 #define MODULE L"Wnd"
 #include "Logger.h"
 
 #include "resource.h"
 #include <stdint.h>
-
-
 
 LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 
@@ -63,30 +62,21 @@ HWND CreateWindowInstance(HINSTANCE hInstance, int width, int height, WCHAR* nam
 	return hwnd;
 }
 
-/* yes I know this ain't good practice to define two of the same data structs in two diffrent files,
-but its the only way I know of that exposes the keyboard's internal functions only to the window
-*/
-typedef struct
-{
-	void (*OnKeyPressed)(uint8_t virtualKey);
-	void (*OnKeyReleased)(uint8_t virtualKey);
-	void (*OnChar)(WCHAR character);
-	void (*ClearState)();
-}keyboardOps;
-
-keyboardOps* keyboardops;
+keyboardOps* keyboardops = NULL;
+MouseOps* mouseOps = NULL;
 
 //window event handler
 LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (Msg)
 	{
-	//window creation and resource creation 
+		//window creation and resource creation 
 	case WM_CREATE:
-		keyboardops = InitKeyboardModuleAndGetOwnership();
-		if (!keyboardops)
-		{
+		if (!InitKeyboardModuleAndGetOwnership(&keyboardops)){
 			LogException(RC_WND_EXCEPTION, L"wnd failed to get keyboard module");
+		}
+		if (!InitMouseModuleAndGetOwnership(&mouseOps)){
+			LogException(RC_MOUSE_EXCEPTION, L"wnd failed to get mouse module");
 		}
 		break;
 	//this section handles keyboard events
@@ -94,35 +84,85 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 	case WM_KEYDOWN:
 		if (!(lParam & 0x40000000) || isAutoRepeatEnabled())
 		{
-			if (keyboardops)
-			{
-				keyboardops->OnKeyPressed(wParam);
-				break;
-			}
+			keyboardops->OnKeyPressed(wParam);
+			break;
 		}
 	case WM_SYSKEYUP:
 	case WM_KEYUP:
-		if (keyboardops)
-		{
-			keyboardops->OnKeyReleased(wParam);
-		}
-		break;	
+		keyboardops->OnKeyReleased(wParam);
+		break;
 	case WM_CHAR:
-		if (keyboardops)
-		{
-			keyboardops->OnChar(wParam);
+		keyboardops->OnChar(wParam);
+		break;
+	//mouse handling
+	case WM_MOUSEMOVE:
+	{
+		POINTS pt = MAKEPOINTS(lParam);
+		mouseOps->OnMouseMove(pt.x, pt.y);
+		break;
+	}
+	case WM_LBUTTONDOWN:
+	{
+		POINTS pt = MAKEPOINTS(lParam);
+		mouseOps->OnLeftPressed(pt.x, pt.y);
+		break;
+	}
+	case WM_RBUTTONDOWN:
+	{
+		POINTS pt = MAKEPOINTS(lParam);
+		mouseOps->OnRightPressed(pt.x, pt.y);
+		break;
+	}
+	case WM_RBUTTONUP:
+	{
+		POINTS pt = MAKEPOINTS(lParam);
+		mouseOps->OnRightReleased(pt.x, pt.y);
+		break;
+	}
+	case WM_LBUTTONUP:
+	{
+		POINTS pt = MAKEPOINTS(lParam);
+		mouseOps->OnLeftReleased(pt.x, pt.y);
+		break;
+	}
+	case WM_MOUSEWHEEL:
+	{
+		POINTS pt = MAKEPOINTS(lParam);
+		if (GET_WHEEL_DELTA_WPARAM(wParam) > 0) {
+			mouseOps->OnWheelUp(pt.x, pt.y);
+		}
+		else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0) {
+			mouseOps->OnWheelDown(pt.x, pt.y);
 		}
 		break;
+	}
+	case WM_MBUTTONDOWN:
+	{
+		POINTS pt = MAKEPOINTS(lParam);
+		mouseOps->OnMiddlePressed(pt.x, pt.y);
+		break;
+	}
+	case WM_MBUTTONUP:
+	{
+		POINTS pt = MAKEPOINTS(lParam);
+		mouseOps->OnMiddleReleased(pt.x, pt.y);
+		break;
+	}
 	case WM_KILLFOCUS: //this makes sure that losing focus doesn't cause undefined behaviour
 		if (keyboardops)
 		{
 			keyboardops->ClearState();
+		}
+		if (mouseOps)
+		{
+			mouseOps->ClearState();
 		}
 		break;
 	//closing of window and destruction of resources that belong to it
 	case WM_CLOSE:
 		PostQuitMessage(1);
 		DestroyKeyboardModuleAndRevokeOwnership(&keyboardops);
+		DestroyMouseModuleAndRevokeOwnership(&mouseOps);
 		break;
 	}
 

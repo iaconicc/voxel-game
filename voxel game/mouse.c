@@ -8,69 +8,60 @@
 
 bool mouseIsOwned = false;
 
-uint8_t MouseState;
+uint8_t mouseState;
 
 FIFO* MouseEvents = NULL;
 
 uint16_t g_x;
 uint16_t g_y;
 
-typedef struct {
-	void (*OnMouseMove)(uint16_t x, uint16_t y);
-	void (*OnLeftPressed)(uint16_t x, uint16_t y);
-	void (*OnLeftReleased)(uint16_t x, uint16_t y);
-	void (*OnRightPressed)(uint16_t x, uint16_t y);
-	void (*OnRightReleased)(uint16_t x, uint16_t y);
-	void (*OnWheelUp)(uint16_t x, uint16_t y);
-	void (*OnWheelDown)(uint16_t x, uint16_t y);
-	void (*OnMiddlePressed)(uint16_t x, uint16_t y);
-	void (*OnMiddleReleased)(uint16_t x, uint16_t y);
-}MouseOps;
+static void OnMouseMove(uint16_t x, uint16_t y);
+static void OnLeftPressed(uint16_t x, uint16_t y);
+static void OnLeftReleased(uint16_t x, uint16_t y);
+static void OnRightPressed(uint16_t x, uint16_t y);
+static void OnRightReleased(uint16_t x, uint16_t y);
+static void OnWheelUp(uint16_t x, uint16_t y);
+static void OnWheelDown(uint16_t x, uint16_t y);
+static void OnMiddlePressed(uint16_t x, uint16_t y);
+static void OnMiddleReleased(uint16_t x, uint16_t y);
+static void ClearState();
 
-MouseOps ops;
+MouseOps mOps = {
+	.OnMouseMove = OnMouseMove,
+	.OnLeftPressed = OnLeftPressed,
+	.OnLeftReleased = OnLeftReleased,
+	.OnRightPressed = OnRightPressed,
+	.OnRightReleased = OnRightReleased,
+	.OnWheelUp = OnWheelUp,
+	.OnWheelDown = OnWheelDown,
+	.OnMiddlePressed = OnMiddlePressed,
+	.OnMiddleReleased = OnMiddleReleased,
+	.ClearState = ClearState,
+};
 
-void OnMouseMove(uint16_t x, uint16_t y);
-void OnLeftPressed(uint16_t x, uint16_t y);
-void OnLeftReleased(uint16_t x, uint16_t y);
-void OnRightPressed(uint16_t x, uint16_t y);
-void OnRightReleased(uint16_t x, uint16_t y);
-void OnWheelUp(uint16_t x, uint16_t y);
-void OnWheelDown(uint16_t x, uint16_t y);
-void OnMiddlePressed(uint16_t x, uint16_t y);
-void OnMiddleReleased(uint16_t x, uint16_t y);
-
-
-void* InitMouseModuleAndGetOwnership()
+bool InitMouseModuleAndGetOwnership(MouseOps** ops)
 {
 	if (mouseIsOwned)
-		return NULL;
+		return false;
 
 	InitFIFO(&MouseEvents, MOUSEEVENTSSIZE, sizeof(MouseEvent));
 
 	if (!MouseEvents)
 	{
 		LogException(RC_MOUSE_EXCEPTION, L"An exception occured while creating mouse events buffer");
-		return NULL;
+		return false;
 	}
 
-	ops.OnMouseMove = OnMouseMove;
-	ops.OnLeftPressed = OnLeftPressed;
-	ops.OnLeftReleased = OnLeftReleased;
-	ops.OnRightPressed = OnRightPressed;
-	ops.OnRightReleased = OnRightReleased;
-	ops.OnWheelUp = OnWheelUp;
-	ops.OnWheelDown = OnWheelDown;
-	ops.OnMiddlePressed = OnMiddlePressed;
-	ops.OnMiddleReleased = OnMiddleReleased;
+	(*ops) = &mOps;
 
 	mouseIsOwned = true;
 	LogInfo(L"Mouse module initiliased with no issues.");
-	return;
+	return true;
 }
 
 uint8_t GetMouseStates()
 {
-	return MouseState;
+	return mouseState;
 }
 
 uint16_t GetMouseX()
@@ -114,7 +105,7 @@ void FlushMouseEvents()
 	LogDebug(L"mouse events buffer flushed.");
 }
 
-void OnMouseMove(uint16_t x, uint16_t y)
+static void OnMouseMove(uint16_t x, uint16_t y)
 {
 	MouseEvent event = {
 		.type = Event_Move,
@@ -127,9 +118,9 @@ void OnMouseMove(uint16_t x, uint16_t y)
 	//LogDebug(L"Mouse moved to : %hu, %hu", x, y);
 }
 
-void OnLeftPressed(uint16_t x, uint16_t y)
+static void OnLeftPressed(uint16_t x, uint16_t y)
 {
-	MouseState |= Mouse_Left;
+	mouseState |= Mouse_Left;
 	MouseEvent event = {
 		.type = Event_L_Press,
 		.x = x,
@@ -141,9 +132,9 @@ void OnLeftPressed(uint16_t x, uint16_t y)
 	LogDebug(L"Mouse L clicked at : %hu, %hu", x, y);
 }
 
-void OnLeftReleased(uint16_t x, uint16_t y)
+static void OnLeftReleased(uint16_t x, uint16_t y)
 {
-	MouseState &= ~(Mouse_Left);
+	mouseState &= ~(Mouse_Left);
 	MouseEvent event = {
 		.type = Event_L_Release,
 		.x = x,
@@ -155,9 +146,9 @@ void OnLeftReleased(uint16_t x, uint16_t y)
 	LogDebug(L"Mouse L Release at : %hu, %hu", x, y);
 }
 
-void OnRightPressed(uint16_t x, uint16_t y)
+static void OnRightPressed(uint16_t x, uint16_t y)
 {
-	MouseState |= Mouse_Right;
+	mouseState |= Mouse_Right;
 	MouseEvent event = {
 		.type = Event_R_Press,
 		.x = x,
@@ -169,9 +160,9 @@ void OnRightPressed(uint16_t x, uint16_t y)
 	LogDebug(L"Mouse R pressed at : %hu, %hu", x, y);
 }
 
-void OnRightReleased(uint16_t x, uint16_t y)
+static void OnRightReleased(uint16_t x, uint16_t y)
 {
-	MouseState &= ~(Mouse_Right);
+	mouseState &= ~(Mouse_Right);
 	MouseEvent event = {
 		.type = Event_R_Release,
 		.x = x,
@@ -183,7 +174,7 @@ void OnRightReleased(uint16_t x, uint16_t y)
 	LogDebug(L"Mouse R Released at : %hu, %hu", x, y);
 }
 
-void OnWheelUp(uint16_t x, uint16_t y)
+static void OnWheelUp(uint16_t x, uint16_t y)
 {
 	MouseEvent event = {
 		.type = Event_Wheel_Up,
@@ -196,7 +187,7 @@ void OnWheelUp(uint16_t x, uint16_t y)
 	LogDebug(L"Mouse Wheel up at : %hu, %hu", x, y);
 }
 
-void OnWheelDown(uint16_t x, uint16_t y)
+static void OnWheelDown(uint16_t x, uint16_t y)
 {
 	MouseEvent event = {
 	.type = Event_Wheel_Down,
@@ -209,9 +200,9 @@ void OnWheelDown(uint16_t x, uint16_t y)
 	LogDebug(L"Mouse Wheel down at : %hu, %hu", x, y);
 }
 
-void OnMiddlePressed(uint16_t x, uint16_t y)
+static void OnMiddlePressed(uint16_t x, uint16_t y)
 {
-	MouseState |= Mouse_Middle;
+	mouseState |= Mouse_Middle;
 	MouseEvent event = {
 	.type = Event_Wheel_Down,
 	.x = x,
@@ -223,9 +214,9 @@ void OnMiddlePressed(uint16_t x, uint16_t y)
 	LogDebug(L"Mouse Middle pressed at : %hu, %hu", x, y);
 }
 
-void OnMiddleReleased(uint16_t x, uint16_t y)
+static void OnMiddleReleased(uint16_t x, uint16_t y)
 {
-	MouseState &= ~(Mouse_Middle);
+	mouseState &= ~(Mouse_Middle);
 	MouseEvent event = {
 	.type = Event_Wheel_Down,
 	.x = x,
@@ -237,12 +228,18 @@ void OnMiddleReleased(uint16_t x, uint16_t y)
 	LogDebug(L"Mouse Middle released at : %hu, %hu", x, y);
 }
 
-void DestroyMouseModuleAndRevokeOwnership(void** MouseOpsPtr)
+static void ClearState()
+{
+	mouseState = 0;
+	LogDebug(L"Mouse state cleared");
+}
+
+void DestroyMouseModuleAndRevokeOwnership(MouseOps** MouseOpsPtr)
 {
 	if (!mouseIsOwned)
 		return;
 
-	if (*MouseOpsPtr != &ops)
+	//if (*MouseOpsPtr != &mouseOps)
 		return;
 
 	mouseIsOwned = false;

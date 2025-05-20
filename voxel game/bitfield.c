@@ -2,7 +2,7 @@
 #include <malloc.h>
 
 struct BitField {
-	int size;
+	uint64_t size;
 	uint32_t* data;
 };
 

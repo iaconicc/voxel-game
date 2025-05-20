@@ -10,7 +10,7 @@ typedef enum {
 	LOG_INFO = 0x00,
 	LOG_DEBUG = 0x01,
 	LOG_WARNING = 0x02,
-};
+} LOGGINGLEVELS;
 
 errno_t StartLogger();
 void StopLogger();
