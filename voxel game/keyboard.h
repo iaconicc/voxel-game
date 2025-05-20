@@ -7,12 +7,12 @@ typedef enum
 {
    EVENT_KEY_Press = 0x01,
    EVENT_KEY_Release = 0x02,
-   EVENT_KEY_Invalid = 0x03
-} EventType;
+   EVENT_KEY_Invalid = 0x00
+} KeyEventType;
 
 typedef struct {
 	uint8_t vkcode;
-	EventType type;
+	uint8_t type; //this is event type use the enum above
 }KeyEvent;
 
 void* InitKeyboardModuleAndGetOwnership();

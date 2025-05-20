@@ -6,24 +6,31 @@
 
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-	 //inits program then runs until program exits or has exception
+	//initialises the logger the program will not start without it
 	if (StartLogger() != 0) {
+		MessageBoxW(NULL, L"Failed to initialize the logger. Exiting application.", L"Logger Error", MB_OK | MB_ICONERROR);
 		LogWarning(L"failed to start logger");
 		return -1;
 	}
 
-	LogInfo(L"Application start");
+	LogInfo(L"Logger initialized successfully.");
+	LogInfo(L"Application starting with command-line arguments: %S", lpCmdLine);
+
+	//inits program then runs until program exits or has exception
+	LogInfo(L"Application starting...");
 	int returnStatus = ApplicationStartAndRun(hInstance, 800, 600, L"voxel game engine");
 	
-	if (returnStatus != RC_NORMAL)
-	{
-		LogWarning(L"Application is exiting with the exception code: %u or %s", returnStatus, convertRCtoString(returnStatus));
-		goto end;
+	// Handle program exit
+	if (returnStatus != RC_NORMAL) {
+		MessageBoxW(NULL, L"The program has exited with an exception. Please refer to the logs.", L"Error", MB_OK | MB_ICONERROR);
+		LogWarning(L"Application exited with exception code: %u (%s)", returnStatus, convertRCtoString(returnStatus));
+	}
+	else {
+		LogInfo(L"Application exited normally with code: %u (%s)", returnStatus, convertRCtoString(returnStatus));
 	}
 
-	 LogInfo(L"Application has exited normally with code: %u or %s", returnStatus, convertRCtoString(returnStatus));
 	 StopLogger();
+	 LogInfo(L"Logger stopped. Exiting application.");
 
-	 end:
 	 return returnStatus;
 }

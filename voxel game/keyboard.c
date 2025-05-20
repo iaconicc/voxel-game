@@ -8,11 +8,13 @@
 bool keyboardIsOwned = false;
 bool AutoRepeatEnabled = false;
 
-BitField* keystates;
-FIFO* keyevents;
-FIFO* characterFifo;
+#define KEYSTATESSIZE 256
+#define KEYEVENTSSIZE 128
+#define CHARACTERFIFOSIZE 128
 
-
+BitField* keystates = NULL;
+FIFO* keyevents = NULL;
+FIFO* characterFifo = NULL;
 
 typedef struct
 {
@@ -24,72 +26,49 @@ typedef struct
 
 keyboardOps ops;
 
-
-static void OnKeyPressed(uint8_t virtualKey)
-{
-	int index = virtualKey % 256;
-	SetBit(&keystates, index);
-	KeyEvent event ={
-		.type = EVENT_KEY_Press,
-		.vkcode = virtualKey
-	};
-	PushElement(&keyevents, &event);
-}
-
-static void OnKeyReleased(uint8_t virtualKey)
-{
-	int index = virtualKey % 256;
-	UnsetBit(&keystates, index);
-	KeyEvent event = {
-	.type = EVENT_KEY_Release,
-	.vkcode = virtualKey
-	};
-	PushElement(&keyevents, &event);
-}
-static void OnChar(WCHAR character)
-{
-	PushElement(&characterFifo, &character);
-}
-
-static void ClearState()
-{
-	ClearField(&keystates);
-}
-
-bool isAutoRepeatEnabled()
-{
-	return AutoRepeatEnabled;
-}
-
-void AutoRepeatEnable(bool enable)
-{
-	AutoRepeatEnabled = enable;
-}
+static void OnKeyPressed(uint8_t virtualKey);
+static void OnKeyReleased(uint8_t virtualKey);
+static void OnChar(WCHAR character);
+static void ClearState();
 
 void* InitKeyboardModuleAndGetOwnership()
 {
 	if (keyboardIsOwned)
 		return NULL;
 
-	InitBitField(&keystates, 256);
-	InitFIFO(&characterFifo, 128, sizeof(WCHAR));
-	InitFIFO(&keyevents, 128, sizeof(KeyEvent));
+	InitBitField(&keystates, KEYSTATESSIZE);
+	InitFIFO(&characterFifo, CHARACTERFIFOSIZE, sizeof(WCHAR));
+	InitFIFO(&keyevents, KEYEVENTSSIZE, sizeof(KeyEvent));
 
 	if (!keystates)
 	{
-		LogException(RC_KBD_EXCEPTIOM, L"An exception occured while creating keystates bitmap");
+		if (characterFifo)
+			DestroyFIFO(&characterFifo);
+
+		if (keyevents)
+			DestroyFIFO(&keyevents);
+
+		LogException(RC_KBD_EXCEPTION, L"An exception occured while creating keystates bitmap");
 		return NULL;
 	}
 
 	if (!characterFifo)
 	{
-		LogException(RC_KBD_EXCEPTIOM, L"An exception occured while creating character buffer");
+		DestroyBitField(&keystates);
+
+		if (keyevents)
+			DestroyFIFO(&keyevents);
+
+		LogException(RC_KBD_EXCEPTION, L"An exception occured while creating character buffer");
 		return NULL;
 	}
 
 	if (!keyevents)
-	{
-		LogException(RC_KBD_EXCEPTIOM, L"An exception occured while creating key events buffer");
+	{		
+		DestroyBitField(&keystates);
+		DestroyFIFO(&characterFifo);
+
+		LogException(RC_KBD_EXCEPTION, L"An exception occured while creating key events buffer");
 		return NULL;
 	}
 
@@ -100,12 +79,49 @@ void* InitKeyboardModuleAndGetOwnership()
 	ops.OnChar = OnChar;
 	ops.ClearState = ClearState;
 
+	LogInfo(L"keyboard module initiliased with no issues.");
 	return &ops;
+}
+
+static void OnKeyPressed(uint8_t virtualKey)
+{
+	int index = virtualKey % KEYSTATESSIZE;
+	SetBit(&keystates, index);
+	KeyEvent event = {
+		.type = EVENT_KEY_Press,
+		.vkcode = virtualKey
+	};
+	PushElement(&keyevents, &event);
+	LogDebug(L"Key pressed: %u", virtualKey);
+}
+
+static void OnKeyReleased(uint8_t virtualKey)
+{
+	int index = virtualKey % KEYSTATESSIZE;
+	UnsetBit(&keystates, index);
+	KeyEvent event = {
+	.type = EVENT_KEY_Release,
+	.vkcode = virtualKey
+	};
+	PushElement(&keyevents, &event);
+	LogDebug(L"Key released: %u", virtualKey);
+}
+
+static void OnChar(WCHAR character)
+{
+	PushElement(&characterFifo, &character);
+	LogDebug(L"Character input: %lc", character);
+}
+
+static void ClearState()
+{
+	ClearField(&keystates);
+	LogDebug(L"Keyboard state cleared.");
 }
 
 bool keyIsPressed(uint8_t virtualkey)
 {
-	int index = virtualkey % 256;
+	int index = virtualkey % KEYSTATESSIZE;
 	return ReadBit(&keystates, index);
 }
 
@@ -152,23 +168,43 @@ bool isKeyEventsBufferEmpty()
 	return isFIFOEmpty(&keyevents);
 }
 
+bool isAutoRepeatEnabled()
+{
+	return AutoRepeatEnabled;
+}
+
+void AutoRepeatEnable(bool enable)
+{
+	AutoRepeatEnabled = enable;
+	LogInfo(L"Auto-repeat %s.", enable ? L"enabled" : L"disabled");
+}
+
 void FlushCharacters()
 {
 	FlushFIFO(&characterFifo);
+	LogDebug(L"Character buffer flushed.");
 }
 
 void FlushKeys()
 {
 	FlushFIFO(&keyevents);
+	LogDebug(L"Key events buffer flushed.");
 }
-void DestroyKeyboardModuleAndRevokeOwnership(void** ops)
+
+void DestroyKeyboardModuleAndRevokeOwnership(void** keyboardOpsPtr)
 {
 	if (!keyboardIsOwned)
 		return;
 
+	if (*keyboardOpsPtr != &ops)
+		return;
+
 	keyboardIsOwned = false;
-	*ops = NULL;
+	*keyboardOpsPtr = NULL;
+
 	DestroyBitField(&keystates);
 	DestroyFIFO(&characterFifo);
 	DestroyFIFO(&keyevents);
+
+	LogInfo(L"Keyboard module destroyed and ownership revoked.");
 }

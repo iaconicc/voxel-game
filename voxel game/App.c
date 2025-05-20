@@ -16,16 +16,23 @@ int ApplicationStartAndRun(HINSTANCE hinstance, int width, int height, WCHAR* na
 {
 	//create a window
 	g_hwnd = CreateWindowInstance(hinstance, width, height, name);
-	LogInfo(L"created window with dimesions %uX%u", width, height);
+	if (!g_hwnd){
+		LogWarning(L"The application failed to create window");
+		return RC_WND_EXCEPTION;
+	}
+	LogInfo(L"created window with dimesions %u x %u", width, height);
 	
-	LogInfo(L"Starting App loop");
+	//start application loop
+	LogInfo(L"Starting App loop...");
 	while (TRUE)
 	{
 		int ecode;
 		if (ecode = ProcessMessages())
 		{
+			g_hwnd = NULL;
 			return ecode;
 		}
+		//game logic
 		DoFrameLogic();
 	}
 
