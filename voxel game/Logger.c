@@ -163,3 +163,24 @@ void __LogException(WCHAR* file, int line,int type, WCHAR* module, WCHAR* fmt, .
 
 	fflush(gamelog);
 }
+
+WCHAR* formatWin32ErrorCodes(int hr)
+{
+	WCHAR* msgbuffer = NULL;
+	uint16_t nMsgLen = FormatMessage(
+	FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &msgbuffer, 0, NULL);
+	if (nMsgLen == 0)
+	{
+		return L"unknown error";
+	}
+
+	// Allocate a new buffer and copy the message
+	WCHAR* msg = (WCHAR*)malloc((nMsgLen + 1) * sizeof(WCHAR));
+	if (msg)
+	{
+		wcscpy_s(msg, nMsgLen + 1, msgbuffer);
+	}
+	LocalFree(msgbuffer);
+	return msg;
+}

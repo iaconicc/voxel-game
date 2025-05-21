@@ -12,10 +12,10 @@ static void DoFrameLogic()
 
 }
 
-int ApplicationStartAndRun(HINSTANCE hinstance, int width, int height, WCHAR* name)
+int ApplicationStartAndRun(int width, int height, WCHAR* name)
 {
 	//create a window
-	g_hwnd = CreateWindowInstance(hinstance, width, height, name);
+	g_hwnd = CreateWindowInstance(width, height, name);
 	if (!g_hwnd){
 		LogWarning(L"The application failed to create window");
 		return RC_WND_EXCEPTION;
@@ -30,6 +30,7 @@ int ApplicationStartAndRun(HINSTANCE hinstance, int width, int height, WCHAR* na
 		if (ecode = ProcessMessages())
 		{
 			g_hwnd = NULL;
+			CleanupWindow();
 			return ecode;
 		}
 		//game logic

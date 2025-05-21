@@ -1,6 +1,7 @@
 #pragma once
 #include <Windows.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include "ReturnCodes.h"
 
 
@@ -18,6 +19,7 @@ void StopLogger();
 //please do no use these functions directly use the macros provided below
 void __LogException(WCHAR* file, int line, int type, WCHAR* module, WCHAR* fmt, ...);
 void __Log(int Level, WCHAR* module, WCHAR* fmt, ...);
+WCHAR* formatWin32ErrorCodes(int hr);
 
 //some util macros for expanding __FILE__ into a wide string
 #define WIDE2(x) L##x
@@ -30,5 +32,6 @@ void __Log(int Level, WCHAR* module, WCHAR* fmt, ...);
 #define LogWarning(fmt, ...) __Log(LOG_WARNING, MODULE, fmt, __VA_ARGS__);
 #define LogException(type, fmt, ...) PostQuitMessage(type); __LogException(WFILE, __LINE__, type, MODULE, fmt, __VA_ARGS__);
 
+#define LOGWIN32EXCEPTION(type,hr) PostQuitMessage(type); WCHAR* msg = formatWin32ErrorCodes(hr);  __LogException(WFILE, __LINE__, type, MODULE, msg); free(msg)
 
 

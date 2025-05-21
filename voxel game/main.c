@@ -17,7 +17,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 
 	//inits program then runs until program exits or has exception
 	LogInfo(L"Application starting...");
-	int returnStatus = ApplicationStartAndRun(hInstance, 800, 600, L"voxel game engine");
+	int returnStatus = ApplicationStartAndRun(800, 600, L"voxel game engine");
 	
 	// Handle program exit
 	if (returnStatus != RC_NORMAL) {
