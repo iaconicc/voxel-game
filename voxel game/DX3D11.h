@@ -4,3 +4,4 @@
 
 void CreateDX3D11DeviceForWindow(HWND hwnd);
 void DestroyDX3D11DeviceForWindow();
+void EndFrame();

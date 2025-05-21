@@ -6,10 +6,43 @@
 #include <direct.h>
 #include <fcntl.h>
 #include <io.h>
+#include <dxgidebug.h>
+#pragma comment(lib, "dxguid.lib")
 
 FILE* gamelog;
+IDXGIInfoQueue* infoManager;
+int currentDXmessage = 0;
 
+static void setupInfoManager()  
+{  
+    // Function definition to load from DLL  
+    typedef HRESULT (WINAPI* DXGIGetDebugInterface)(REFIID, void**);  
 
+    HMODULE lib = LoadLibraryEx(L"Dxgidebug.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (!lib)  
+    {  
+        LogWarning(L"could not load Dxgidebug.dll");  
+        return;  
+    }  
+    // Get DXGIGetDebugInterface in the DLL  
+    DXGIGetDebugInterface DXGIgetdebuginterface = (DXGIGetDebugInterface)GetProcAddress(lib, "DXGIGetDebugInterface");  
+    if (!DXGIgetdebuginterface)  
+    {  
+        LogWarning(L"could not load function: DXGIGetDebugInterface");  
+        return;  
+    }  
+
+    // Use the function pointer to call the method  
+    HRESULT hr = DXGIgetdebuginterface(&IID_IDXGIInfoQueue, (void**)&infoManager);
+    if (FAILED(hr))  
+    {  
+        LogWarning(L"Failed to get IDXGIInfoQueue interface: %s", formatWin32ErrorCodes(hr));  
+    }  
+
+	FreeLibrary(lib); // Unload the library
+
+	LogDebug(L"initialised DX info manager");
+}
 
 errno_t StartLogger()  
 {  
@@ -48,13 +81,26 @@ errno_t StartLogger()
   }
   fflush(gamelog); // Ensure it is flushed to disk  
 
+  //for later DX debuging
+  setupInfoManager();
+
   LogInfo(L"Logging has started ƒc");
 
-  return ferr;  
+  return ferr;
+}
+
+static void stopInfoManager()
+{
+	if (infoManager)
+	{
+		infoManager->lpVtbl->Release(infoManager);
+	}
 }
 
 void StopLogger()
 {
+	stopInfoManager();
+
 	if (gamelog)
 	{
 		fclose(gamelog);
@@ -112,6 +158,24 @@ void __Log(int Level, WCHAR* module, WCHAR* fmt, ...)
 	OutputDebugStringW(formattedMsg);
 
 	fflush(gamelog);
+}
+
+void logDXMessages()
+{
+	int end = infoManager->lpVtbl->GetNumStoredMessages(infoManager, DXGI_DEBUG_ALL);
+	for (int i = currentDXmessage; i < end; i++)
+	{
+		//get message length in bytes
+		size_t messageLength;
+		infoManager->lpVtbl->GetMessageW(infoManager, DXGI_DEBUG_ALL, i, NULL, &messageLength);
+		//allocate memmory for message
+		DXGI_INFO_QUEUE_MESSAGE* message = (DXGI_INFO_QUEUE_MESSAGE*)malloc(messageLength);
+		//log message
+		infoManager->lpVtbl->GetMessageW(infoManager, DXGI_DEBUG_ALL, i, (DXGI_INFO_QUEUE_MESSAGE*) message, &messageLength);
+		__Log(LOG_INFO, L"DXGI", L"%s", message->pDescription);
+		free(message);
+	}
+	currentDXmessage = end;
 }
 
 void __LogException(WCHAR* file, int line,int type, WCHAR* module, WCHAR* fmt, ...)

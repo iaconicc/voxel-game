@@ -20,6 +20,7 @@ void StopLogger();
 void __LogException(WCHAR* file, int line, int type, WCHAR* module, WCHAR* fmt, ...);
 void __Log(int Level, WCHAR* module, WCHAR* fmt, ...);
 WCHAR* formatWin32ErrorCodes(int hr);
+void logDXMessages();
 
 //some util macros for expanding __FILE__ into a wide string
 #define WIDE2(x) L##x

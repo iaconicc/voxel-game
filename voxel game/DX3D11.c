@@ -33,7 +33,7 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	HRESULT result = D3D11CreateDeviceAndSwapChain(
 	NULL,
 	D3D_DRIVER_TYPE_HARDWARE,
-	NULL, 0,
+	NULL, D3D11_CREATE_DEVICE_DEBUG,
 	NULL, 0,
 	D3D11_SDK_VERSION,	&sd, &swapchain,
 	&device, NULL, &deviceContext);
@@ -42,6 +42,9 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	{
 		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, result);
 	}
+
+	logDXMessages();
+	LogInfo(L"DX3D device created succesfully");
 }
 
 void DestroyDX3D11DeviceForWindow()
@@ -60,4 +63,9 @@ void DestroyDX3D11DeviceForWindow()
 	{
 		deviceContext->lpVtbl->Release(deviceContext);
 	}
+}
+
+void EndFrame()
+{
+	swapchain->lpVtbl->Present(swapchain,1u, 0u);
 }
