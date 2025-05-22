@@ -1,6 +1,7 @@
 #include "window.h"
 #include "keyboard.h"
 #include "mouse.h"
+#include "DX3D11.h"
 
 #define MODULE L"Wnd"
 #include "Logger.h"
@@ -9,25 +10,28 @@
 #include <stdint.h>
 
 LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+const WCHAR* className = L"VoxelGameClass";
+HINSTANCE wndInstance;
 
-HWND CreateWindowInstance(HINSTANCE hInstance, int width, int height, WCHAR* name)
+HWND CreateWindowInstance(int width, int height, WCHAR* name)
 {
+	wndInstance = GetModuleHandle(NULL);
+
 	//creating and registering a window class that should have its own device context this is for direct3D stuff in the future
-	WNDCLASSEX wc;
-	const WCHAR* className = L"VoxelGameClass";
-	ZeroMemory(&wc, sizeof(WNDCLASSEX));
+	WNDCLASSEX wc = {0};
+	
 	wc.cbSize = sizeof(WNDCLASSEX);
 	wc.style = CS_OWNDC; //window style set to have own window device context
 	wc.lpfnWndProc = Direct3DWindowProc;
 	wc.cbClsExtra = 0;
 	wc.cbWndExtra = 0;
-	wc.hInstance = hInstance;
-	wc.hIcon = LoadImage(hInstance, MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 256, 256, 0);
+	wc.hInstance = wndInstance;
+	wc.hIcon = LoadImage(wndInstance, MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 256, 256, 0);
 	wc.hCursor = NULL;
 	wc.hbrBackground = NULL;
 	wc.lpszMenuName = NULL;
 	wc.lpszClassName = className;
-	wc.hIconSm = LoadImage(hInstance, MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 64, 64, 0);
+	wc.hIconSm = LoadImage(wndInstance, MAKEINTRESOURCE(IDI_ICON1), IMAGE_ICON, 64, 64, 0);
 	
 	
 	if (!RegisterClassExW(&wc)) {
@@ -36,16 +40,25 @@ HWND CreateWindowInstance(HINSTANCE hInstance, int width, int height, WCHAR* nam
 	}
 	LogDebug(L"Registered window class with name: %s and style: 0x%x", wc.lpszClassName, wc.style);
 
+	//calculate window size based on desired client window size
+	uint16_t wndStyle = WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU;
+	RECT wr = {0};
+	wr.left = 100;
+	wr.right = width + wr.left;
+	wr.top = 100;
+	wr.bottom = height + wr.top;
+	AdjustWindowRect(&wr, WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU, FALSE);
 	//creation of window
 	HWND hwnd = CreateWindowEx(
 		0,
 		className,
 		name,
 		WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU,
-		CW_USEDEFAULT, CW_USEDEFAULT, width, height,
+		CW_USEDEFAULT, CW_USEDEFAULT, 
+		wr.right - wr.left, wr.bottom - wr.top,
 		NULL,
 		NULL,
-		hInstance,
+		wndInstance,
 		NULL
 	);
 
@@ -78,6 +91,7 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 		if (!InitMouseModuleAndGetOwnership(&mouseOps)){
 			LogException(RC_MOUSE_EXCEPTION, L"wnd failed to get mouse module");
 		}
+		CreateDX3D11DeviceForWindow(hWnd);
 		break;
 	//this section handles keyboard events
 	case WM_SYSKEYDOWN:
@@ -163,6 +177,7 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 		PostQuitMessage(1);
 		DestroyKeyboardModuleAndRevokeOwnership(&keyboardops);
 		DestroyMouseModuleAndRevokeOwnership(&mouseOps);
+		DestroyDX3D11DeviceForWindow();
 		break;
 	}
 
@@ -186,4 +201,9 @@ int ProcessMessages()
 	}
 
 	return 0;
+}
+
+void CleanupWindow()
+{
+	UnregisterClass(className, wndInstance);
 }

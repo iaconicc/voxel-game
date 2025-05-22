@@ -142,6 +142,7 @@
   <ItemGroup>
     <ClCompile Include="App.c" />
     <ClCompile Include="bitfield.c" />
+    <ClCompile Include="DX3D11.c" />
     <ClCompile Include="Logger.c" />
     <ClCompile Include="FIFO.c" />
     <ClCompile Include="keyboard.c" />
@@ -152,6 +153,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bitfield.h" />
+    <ClInclude Include="DX3D11.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="FIFO.h" />
     <ClInclude Include="keyboard.h" />
