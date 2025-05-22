@@ -21,6 +21,7 @@ void __LogException(WCHAR* file, int line, int type, WCHAR* module, WCHAR* fmt, 
 void __Log(int Level, WCHAR* module, WCHAR* fmt, ...);
 WCHAR* formatWin32ErrorCodes(int hr);
 void logDXMessages();
+void setupInfoManager();
 
 //some util macros for expanding __FILE__ into a wide string
 #define WIDE2(x) L##x
@@ -29,7 +30,13 @@ void logDXMessages();
 
 //use these logging macros please
 #define LogInfo(fmt, ...) __Log(LOG_INFO, MODULE, fmt, __VA_ARGS__);
+
+#ifdef _DEBUG
 #define LogDebug(fmt, ...) __Log(LOG_DEBUG, MODULE, fmt, __VA_ARGS__);
+#else
+#define LogDebug(fmt, ...) 
+#endif
+
 #define LogWarning(fmt, ...) __Log(LOG_WARNING, MODULE, fmt, __VA_ARGS__);
 #define LogException(type, fmt, ...) PostQuitMessage(type); __LogException(WFILE, __LINE__, type, MODULE, fmt, __VA_ARGS__);
 

@@ -36,6 +36,11 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 		}
 		//game logic
 		DoFrameLogic();
+
+#ifdef _DEBUG
+		logDXMessages();
+#endif // _DEBUG
+
 	}
 
 }

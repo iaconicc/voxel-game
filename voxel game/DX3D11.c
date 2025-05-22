@@ -9,27 +9,33 @@ IDXGISwapChain* swapchain = NULL;
 IDXGIDevice* device = NULL;
 ID3D11DeviceContext* deviceContext = NULL;
 
+DXGI_SWAP_CHAIN_DESC sd = {
+	.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+	.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+	.BufferCount = 2,
+	.Flags = 0,
+	.BufferDesc.Width = 0,
+	.BufferDesc.Height = 0,
+	.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM,
+	.BufferDesc.RefreshRate.Numerator = 0,
+	.BufferDesc.RefreshRate.Denominator = 0,
+	.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED,
+	.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
+	.SampleDesc.Count = 1,
+	.SampleDesc.Quality = 0,
+};
 
 void CreateDX3D11DeviceForWindow(HWND hwnd)
 {
-	DXGI_SWAP_CHAIN_DESC sd = {0};
 	sd.OutputWindow = hwnd;
 	sd.Windowed = true;
-	sd.BufferCount = 1;
-	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-	sd.Flags = 0;
-	sd.BufferDesc.Width = 0;
-	sd.BufferDesc.Height = 0;
-	sd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-	sd.BufferDesc.RefreshRate.Numerator = 0;
-	sd.BufferDesc.RefreshRate.Denominator = 0;
-	sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-	sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-	sd.SampleDesc.Count = 1;
-	sd.SampleDesc.Quality = 0;
 	
-	
+	int DeviceFlags = 0;
+
+#ifdef _DEBUG
+	DeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
 	HRESULT result = D3D11CreateDeviceAndSwapChain(
 	NULL,
 	D3D_DRIVER_TYPE_HARDWARE,
@@ -43,7 +49,10 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, result);
 	}
 
-	logDXMessages();
+#ifdef _DEBUG
+	setupInfoManager();
+#endif
+
 	LogInfo(L"DX3D device created succesfully");
 }
 
@@ -67,5 +76,5 @@ void DestroyDX3D11DeviceForWindow()
 
 void EndFrame()
 {
-	swapchain->lpVtbl->Present(swapchain,1u, 0u);
+	swapchain->lpVtbl->Present(swapchain, 1u, 0u);
 }

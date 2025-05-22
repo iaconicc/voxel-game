@@ -13,7 +13,7 @@ FILE* gamelog;
 IDXGIInfoQueue* infoManager;
 int currentDXmessage = 0;
 
-static void setupInfoManager()  
+void setupInfoManager()  
 {  
     // Function definition to load from DLL  
     typedef HRESULT (WINAPI* DXGIGetDebugInterface)(REFIID, void**);  
@@ -168,12 +168,25 @@ void logDXMessages()
 		//get message length in bytes
 		size_t messageLength;
 		infoManager->lpVtbl->GetMessageW(infoManager, DXGI_DEBUG_ALL, i, NULL, &messageLength);
-		//allocate memmory for message
+		//allocate memmory for message and get the message
 		DXGI_INFO_QUEUE_MESSAGE* message = (DXGI_INFO_QUEUE_MESSAGE*)malloc(messageLength);
+		if (!message)
+			break;
+		infoManager->lpVtbl->GetMessage(infoManager, DXGI_DEBUG_ALL, i, message, &messageLength);
+
+		//convert message to wchar
+		WCHAR* wideDescription = (WCHAR*)malloc(messageLength * sizeof(WCHAR));
+		if (!wideDescription)
+		{
+			free(message);
+			break;
+		}
+		MultiByteToWideChar(CP_UTF8, 0, message->pDescription, -1, wideDescription, messageLength);
+
 		//log message
-		infoManager->lpVtbl->GetMessageW(infoManager, DXGI_DEBUG_ALL, i, (DXGI_INFO_QUEUE_MESSAGE*) message, &messageLength);
-		__Log(LOG_INFO, L"DXGI", L"%s", message->pDescription);
+		__Log(LOG_DEBUG, L"DXGI", L"%s", wideDescription);
 		free(message);
+		free(wideDescription);
 	}
 	currentDXmessage = end;
 }
@@ -189,6 +202,12 @@ void __LogException(WCHAR* file, int line,int type, WCHAR* module, WCHAR* fmt, .
 	WCHAR* stringtype = NULL;
 	switch (type)
 	{
+	case RC_LOGGER_EXCEPTION:
+		stringtype = L"loggerException";
+		break;
+	case RC_DX3D11_EXPCEPTION:
+		stringtype = L"DX11Exception";
+		break;
 	case RC_WND_EXCEPTION:
 		stringtype = L"wndException";
 		break;
@@ -210,11 +229,20 @@ void __LogException(WCHAR* file, int line,int type, WCHAR* module, WCHAR* fmt, .
 	va_end(args);
 
 	WCHAR formattedMsg[2048];
+
+#ifdef _DEBUG //DEBUG
 	swprintf_s(formattedMsg, sizeof(formattedMsg) / sizeof(WCHAR),
 		L"[%04d-%02d-%02d %02d:%02d:%02d][ERROR][%s] exception type:%s called at file:%s in line:%u with description:%s\n",
 		local.tm_year + 1900, local.tm_mon + 1, local.tm_mday,
 		local.tm_hour, local.tm_min, local.tm_sec,
 		module, stringtype, file, line, msg);
+#else // Release: removes file and line
+	swprintf_s(formattedMsg, sizeof(formattedMsg) / sizeof(WCHAR),
+		L"[%04d-%02d-%02d %02d:%02d:%02d][ERROR][%s] exception type:%s called with description:%s\n",
+		local.tm_year + 1900, local.tm_mon + 1, local.tm_mday,
+		local.tm_hour, local.tm_min, local.tm_sec,
+		module, stringtype, msg);
+#endif 
 
 	// Write to log file
 	fwprintf(gamelog, L"%s", formattedMsg);
