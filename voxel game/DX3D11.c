@@ -98,7 +98,10 @@ void DestroyDX3D11DeviceForWindow()
 
 void EndFrame()
 {
-	float colour[4] = {1.0f, 0.0f, 0.0f, 1.0f};
+	float colour[4] = {0.0f, 0.7f, 1.0f, 1.0f};
 	deviceContext->lpVtbl->ClearRenderTargetView(deviceContext,renderTargetView, colour);
+
+	//deviceContext->lpVtbl->Draw(deviceContext, 1, 0);
+
 	swapchain->lpVtbl->Present(swapchain, 1u, 0u);
 }
