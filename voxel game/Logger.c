@@ -7,7 +7,6 @@
 #include <fcntl.h>
 #include <io.h>
 #include <dxgidebug.h>
-#pragma comment(lib, "dxguid.lib")
 
 FILE* gamelog;
 IDXGIInfoQueue* infoManager;

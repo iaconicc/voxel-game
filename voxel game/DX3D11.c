@@ -4,10 +4,12 @@
 #include "Logger.h"
 
 #pragma comment(lib,"d3d11.lib")
+#pragma comment(lib, "dxguid.lib")
 
 IDXGISwapChain* swapchain = NULL;
-IDXGIDevice* device = NULL;
+ID3D11Device* device = NULL;
 ID3D11DeviceContext* deviceContext = NULL;
+ID3D11RenderTargetView* renderTargetView = NULL;
 
 DXGI_SWAP_CHAIN_DESC sd = {
 	.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
@@ -24,6 +26,12 @@ DXGI_SWAP_CHAIN_DESC sd = {
 	.SampleDesc.Count = 1,
 	.SampleDesc.Quality = 0,
 };
+
+#ifdef _DEBUG
+#define LOGDXMESSAGES() logDXMessages()
+#else
+#define LOGDXMESSAGES()
+#endif
 
 void CreateDX3D11DeviceForWindow(HWND hwnd)
 {
@@ -44,14 +52,23 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	D3D11_SDK_VERSION,	&sd, &swapchain,
 	&device, NULL, &deviceContext);
 
-	if (FAILED(result))
-	{
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, result);
-	}
-
 #ifdef _DEBUG
 	setupInfoManager();
 #endif
+
+	if (FAILED(result))
+	{
+		LOGDXMESSAGES();
+		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, result);
+	}
+
+	//getting swap chain buffer
+	ID3D11Resource* backBuffer = NULL;
+	swapchain->lpVtbl->GetBuffer(swapchain, 0, &IID_ID3D11Resource, &backBuffer);
+	
+	//create render target from back buffer
+	device->lpVtbl->CreateRenderTargetView(device, backBuffer, NULL, &renderTargetView);
+	backBuffer->lpVtbl->Release(backBuffer);
 
 	LogInfo(L"DX3D device created succesfully");
 }
@@ -72,9 +89,16 @@ void DestroyDX3D11DeviceForWindow()
 	{
 		deviceContext->lpVtbl->Release(deviceContext);
 	}
+
+	if (renderTargetView)
+	{
+		renderTargetView->lpVtbl->Release(renderTargetView);
+	}
 }
 
 void EndFrame()
 {
+	float colour[4] = {1.0f, 0.0f, 0.0f, 1.0f};
+	deviceContext->lpVtbl->ClearRenderTargetView(deviceContext,renderTargetView, colour);
 	swapchain->lpVtbl->Present(swapchain, 1u, 0u);
 }
