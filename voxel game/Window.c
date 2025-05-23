@@ -96,71 +96,104 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 	//this section handles keyboard events
 	case WM_SYSKEYDOWN:
 	case WM_KEYDOWN:
-		if (!(lParam & 0x40000000) || isAutoRepeatEnabled())
+		if (keyboardops)
 		{
-			keyboardops->OnKeyPressed(wParam);
-			break;
+			if (!(lParam & 0x40000000) || isAutoRepeatEnabled())
+			{
+				keyboardops->OnKeyPressed(wParam);
+				break;
+			}
 		}
 	case WM_SYSKEYUP:
 	case WM_KEYUP:
-		keyboardops->OnKeyReleased(wParam);
-		break;
+		if (keyboardops)
+		{
+			keyboardops->OnKeyReleased(wParam);
+			break;
+		}
 	case WM_CHAR:
-		keyboardops->OnChar(wParam);
+		if (keyboardops)
+		{
+			keyboardops->OnChar(wParam);
+		}
 		break;
 	//mouse handling
 	case WM_MOUSEMOVE:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnMouseMove(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnMouseMove(pt.x, pt.y);
+		}
 		break;
 	}
 	case WM_LBUTTONDOWN:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnLeftPressed(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnLeftPressed(pt.x, pt.y);
+		}
 		break;
 	}
 	case WM_RBUTTONDOWN:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnRightPressed(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnRightPressed(pt.x, pt.y);
+		}
 		break;
 	}
 	case WM_RBUTTONUP:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnRightReleased(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnRightReleased(pt.x, pt.y);
+		}
 		break;
 	}
 	case WM_LBUTTONUP:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnLeftReleased(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnLeftReleased(pt.x, pt.y);
+		}
 		break;
 	}
 	case WM_MOUSEWHEEL:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		if (GET_WHEEL_DELTA_WPARAM(wParam) > 0) {
-			mouseOps->OnWheelUp(pt.x, pt.y);
-		}
-		else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0) {
-			mouseOps->OnWheelDown(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0) {
+				mouseOps->OnWheelUp(pt.x, pt.y);
+			}
+			else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0) {
+				mouseOps->OnWheelDown(pt.x, pt.y);
+			}
 		}
 		break;
 	}
 	case WM_MBUTTONDOWN:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnMiddlePressed(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnMiddlePressed(pt.x, pt.y);
+		}
 		break;
 	}
 	case WM_MBUTTONUP:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnMiddleReleased(pt.x, pt.y);
-		break;
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnMiddleReleased(pt.x, pt.y);
+			break;
+		}
 	}
 	case WM_KILLFOCUS: //this makes sure that losing focus doesn't cause undefined behaviour
 		if (keyboardops)

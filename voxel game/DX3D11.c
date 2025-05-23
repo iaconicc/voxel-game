@@ -98,15 +98,16 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	LogInfo(L"pipeline set");
 
 	//create vertex shader
-	ID3DBlob* ShaderBlob = NULL;
-	DXFUNCTIONFAILED(D3DReadFileToBlob(L"VertexShader.cso", &ShaderBlob));
-	DXFUNCTIONFAILED(device->lpVtbl->CreateVertexShader(device, ShaderBlob->lpVtbl->GetBufferPointer(ShaderBlob), ShaderBlob->lpVtbl->GetBufferSize(ShaderBlob), NULL, &vertexShader));
-	ShaderBlob->lpVtbl->Release(ShaderBlob);
+	ID3DBlob* vertexShaderBlob = NULL;
+	DXFUNCTIONFAILED(D3DReadFileToBlob(L"VertexShader.cso", &vertexShaderBlob));
+	DXFUNCTIONFAILED(device->lpVtbl->CreateVertexShader(device, vertexShaderBlob->lpVtbl->GetBufferPointer(vertexShaderBlob), vertexShaderBlob->lpVtbl->GetBufferSize(vertexShaderBlob), NULL, &vertexShader));
+	vertexShaderBlob->lpVtbl->Release(vertexShaderBlob);
 
 	//create pixel shader
-	DXFUNCTIONFAILED(D3DReadFileToBlob(L"PixelShader.cso", &ShaderBlob));
-	DXFUNCTIONFAILED(device->lpVtbl->CreatePixelShader(device, ShaderBlob->lpVtbl->GetBufferPointer(ShaderBlob), ShaderBlob->lpVtbl->GetBufferSize(ShaderBlob), NULL, &vertexShader));
-	ShaderBlob->lpVtbl->Release(ShaderBlob);
+	ID3DBlob* pixelShaderBlob = NULL;
+	DXFUNCTIONFAILED(D3DReadFileToBlob(L"PixelShader.cso", &pixelShaderBlob));
+	DXFUNCTIONFAILED(device->lpVtbl->CreatePixelShader(device, pixelShaderBlob->lpVtbl->GetBufferPointer(pixelShaderBlob), pixelShaderBlob->lpVtbl->GetBufferSize(pixelShaderBlob), NULL, &pixelShader));
+	pixelShaderBlob->lpVtbl->Release(pixelShaderBlob);
 
 	//bind shaders
 	deviceContext->lpVtbl->VSSetShader(deviceContext, vertexShader, NULL, 0);
@@ -200,7 +201,7 @@ void EndFrame()
 	float colour[4] = {0.0f, 0.7f, 1.0f, 1.0f};
 	deviceContext->lpVtbl->ClearRenderTargetView(deviceContext,renderTargetView, colour);
 
-	//deviceContext->lpVtbl->DrawIndexed(deviceContext, 36, 0, 0);
+	deviceContext->lpVtbl->DrawIndexed(deviceContext, 36, 0, 0);
 
 	HRESULT hr;
 	if (FAILED(hr = swapchain->lpVtbl->Present(swapchain, 1u, 0u)))

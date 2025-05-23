@@ -38,7 +38,6 @@ void setupInfoManager()
     }  
 
 	FreeLibrary(lib); // Unload the library
-
 	LogDebug(L"initialised DX info manager");
 }
 
