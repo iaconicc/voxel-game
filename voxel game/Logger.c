@@ -33,8 +33,7 @@ void setupInfoManager()
 
     // Use the function pointer to call the method  
     HRESULT hr = DXGIgetdebuginterface(&IID_IDXGIInfoQueue, (void**)&infoManager);
-    if (FAILED(hr))  
-    {  
+    if (FAILED(hr))  {  
         LogWarning(L"Failed to get IDXGIInfoQueue interface: %s", formatWin32ErrorCodes(hr));  
     }  
 
@@ -79,9 +78,6 @@ errno_t StartLogger()
 	  fwprintf(stderr, L"BOM written successfully.\n");
   }
   fflush(gamelog); // Ensure it is flushed to disk  
-
-  //for later DX debuging
-  setupInfoManager();
 
   LogInfo(L"Logging has started ƒc");
 
