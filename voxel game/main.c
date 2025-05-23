@@ -5,6 +5,7 @@
 #include "Logger.h"
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+	
 	//initialises the logger the program will not start without it
 	if (StartLogger() != 0) {
 		MessageBoxW(NULL, L"Failed to initialize the logger. Exiting application.", L"Logger Error", MB_OK | MB_ICONERROR);

@@ -45,6 +45,9 @@
     <ClCompile Include="DX3D11.c">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="chunk.c">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="window.h">

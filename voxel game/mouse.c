@@ -239,7 +239,7 @@ void DestroyMouseModuleAndRevokeOwnership(MouseOps** MouseOpsPtr)
 	if (!mouseIsOwned)
 		return;
 
-	//if (*MouseOpsPtr != &mouseOps)
+	if (*MouseOpsPtr != &mOps)
 		return;
 
 	mouseIsOwned = false;
