@@ -19,6 +19,8 @@ ID3D11Buffer* IndexBuffer = NULL;
 ID3D11VertexShader* vertexShader = NULL;
 ID3D11PixelShader* pixelShader = NULL;
 
+ID3D11InputLayout* inputLayout = NULL;
+
 UINT offset = 0;
 UINT VertexSizeInBytes = sizeof(vertex);
 
@@ -37,6 +39,8 @@ DXGI_SWAP_CHAIN_DESC sd = {
 	.SampleDesc.Count = 1,
 	.SampleDesc.Quality = 0,
 };
+
+DXGI_SWAP_CHAIN_DESC generatedSD = {0};
 
 #ifdef _DEBUG
 #define LOGDXMESSAGES() logDXMessages()
@@ -80,7 +84,10 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 
 	LogInfo(L"setting up base pipeline...");
 	//setup pipeline
+
 	HRESULT hr;
+	//get updated swap chain descriptor
+	DXFUNCTIONFAILED(swapchain->lpVtbl->GetDesc(swapchain, &generatedSD));
 
 	//getting swap chain buffer
 	ID3D11Resource* backBuffer = NULL;
@@ -97,12 +104,21 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	ID3DBlob* vertexShaderBlob = NULL;
 	DXFUNCTIONFAILED(D3DReadFileToBlob(L"VertexShader.cso", &vertexShaderBlob));
 	DXFUNCTIONFAILED(device->lpVtbl->CreateVertexShader(device, vertexShaderBlob->lpVtbl->GetBufferPointer(vertexShaderBlob), vertexShaderBlob->lpVtbl->GetBufferSize(vertexShaderBlob), NULL, &vertexShader));
-	vertexShaderBlob->lpVtbl->Release(vertexShaderBlob);
+
+	//create and bind input layout
+	D3D11_INPUT_ELEMENT_DESC ied[] = {
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+	};
+	DXFUNCTIONFAILED(device->lpVtbl->CreateInputLayout(device, &ied, 1, vertexShaderBlob->lpVtbl->GetBufferPointer(vertexShaderBlob), vertexShaderBlob->lpVtbl->GetBufferSize(vertexShaderBlob), &inputLayout));
+	deviceContext->lpVtbl->IASetInputLayout(deviceContext, inputLayout);
 
 	//create pixel shader
 	ID3DBlob* pixelShaderBlob = NULL;
 	DXFUNCTIONFAILED(D3DReadFileToBlob(L"PixelShader.cso", &pixelShaderBlob));
 	DXFUNCTIONFAILED(device->lpVtbl->CreatePixelShader(device, pixelShaderBlob->lpVtbl->GetBufferPointer(pixelShaderBlob), pixelShaderBlob->lpVtbl->GetBufferSize(pixelShaderBlob), NULL, &pixelShader));
+
+	//release raw shader binary
+	vertexShaderBlob->lpVtbl->Release(vertexShaderBlob);
 	pixelShaderBlob->lpVtbl->Release(pixelShaderBlob);
 
 	//bind shaders
@@ -111,7 +127,13 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 
 	//set viewport
 	D3D11_VIEWPORT vp = {0};
-	//vp.Width ;
+	vp.Width = generatedSD.BufferDesc.Width;
+	vp.Height = generatedSD.BufferDesc.Height;
+	vp.MinDepth = 0;
+	vp.MaxDepth = 1;
+	vp.TopLeftX = 0;
+	vp.TopLeftY = 0;
+	deviceContext->lpVtbl->RSSetViewports(deviceContext, 1, &vp);
 
 	//set render target view
 	deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, NULL);
@@ -205,10 +227,17 @@ void DestroyDX3D11DeviceForWindow()
 	{
 		pixelShader->lpVtbl->Release(pixelShader);
 	}
+
+	if (inputLayout)
+	{
+		inputLayout->lpVtbl->Release(inputLayout);
+	}
 }
 
 void EndFrame()
 {
+	deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, NULL);
+
 	float colour[4] = {0.0f, 0.7f, 1.0f, 1.0f};
 	deviceContext->lpVtbl->ClearRenderTargetView(deviceContext,renderTargetView, colour);
 

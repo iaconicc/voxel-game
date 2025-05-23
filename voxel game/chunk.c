@@ -32,6 +32,8 @@ void createBlock()
 {
 	vertexlist = malloc(8 * sizeof(vertex));
 	facelist = malloc(6 * sizeof(face));
+	memcpy_s(vertexlist, 8 * sizeof(vertex), cubeVertexs, sizeof(cubeVertexs));
+	memcpy_s(facelist, 6 * sizeof(face), cubeFaces, sizeof(cubeFaces));
 	createVertexBufferAndAppendToList(vertexlist, 8 * sizeof(vertex));
 	createIndexDataBuffer(facelist, 6 * sizeof(face));
 }
