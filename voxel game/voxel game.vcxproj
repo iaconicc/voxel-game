@@ -142,6 +142,7 @@
   <ItemGroup>
     <ClCompile Include="App.c" />
     <ClCompile Include="bitfield.c" />
+    <ClCompile Include="chunk.c" />
     <ClCompile Include="DX3D11.c" />
     <ClCompile Include="Logger.c" />
     <ClCompile Include="FIFO.c" />
