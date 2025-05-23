@@ -11,6 +11,8 @@ ID3D11Device* device = NULL;
 ID3D11DeviceContext* deviceContext = NULL;
 ID3D11RenderTargetView* renderTargetView = NULL;
 
+ID3D11Buffer* vertexBuffers[32];
+
 DXGI_SWAP_CHAIN_DESC sd = {
 	.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
 	.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
@@ -77,13 +79,22 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	LogInfo(L"DX3D device created succesfully");
 }
 
-
-ID3D11Buffer* vertexBuffers[32];
-
-void createVertexBufferAndAppendToList()
+void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
 {
-	
+	D3D11_BUFFER_DESC bd = {0};
+	bd.ByteWidth = sizeInBytes;
+	bd.Usage = D3D11_USAGE_DYNAMIC;
+	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bd.CPUAccessFlags = 0;
+	bd.MiscFlags = 0;
+	bd.StructureByteStride = sizeof(vertex);
+
+	D3D11_SUBRESOURCE_DATA sd = {0};
+	sd.pSysMem = vertexArray;
+	device->lpVtbl->CreateBuffer(device, &bd, &sd, vertexBuffers[0]);
 }
+
+
 
 
 void DestroyDX3D11DeviceForWindow()

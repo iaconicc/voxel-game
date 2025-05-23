@@ -1,3 +1,4 @@
+#include "chunk.h"
 #include "DX3D11.h"
 
 typedef struct {
@@ -24,7 +25,8 @@ static face cubeFaces[6] = {
 	{1, 2, 5, 5, 2, 6}, //Right face
 };
 
-createBlock()
+void createBlock()
 {
-
+	vertex* vertexlist = malloc(8 * sizeof(vertex));
+	createVertexBufferAndAppendToList(vertexlist, 8 * sizeof(vertex));
 }

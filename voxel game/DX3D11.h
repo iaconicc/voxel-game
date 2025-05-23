@@ -8,6 +8,7 @@ typedef struct {
 	float z;
 }vertex;
 
+void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes);
 void CreateDX3D11DeviceForWindow(HWND hwnd);
 void DestroyDX3D11DeviceForWindow();
 void EndFrame();
