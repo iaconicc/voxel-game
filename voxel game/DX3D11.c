@@ -107,5 +107,18 @@ void EndFrame()
 
 	//deviceContext->lpVtbl->Draw(deviceContext, 1, 0);
 
-	swapchain->lpVtbl->Present(swapchain, 1u, 0u);
+	HRESULT hr;
+	if (FAILED(hr = swapchain->lpVtbl->Present(swapchain, 1u, 0u)))
+	{
+		if (hr == DXGI_ERROR_DEVICE_REMOVED)
+		{
+			LOGDXMESSAGES();
+			LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, device->lpVtbl->GetDeviceRemovedReason(device));
+		}
+		else
+		{
+			LOGDXMESSAGES();
+			LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
+		}
+	}
 }
