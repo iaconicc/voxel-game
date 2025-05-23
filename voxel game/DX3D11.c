@@ -33,6 +33,7 @@ DXGI_SWAP_CHAIN_DESC sd = {
 #define LOGDXMESSAGES()
 #endif
 
+#define DXFUNCTIONFAILED(hrcall) if(FAILED(hr = (hrcall))){ LOGDXMESSAGES(); LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr); return;}
 void CreateDX3D11DeviceForWindow(HWND hwnd)
 {
 	sd.OutputWindow = hwnd;
@@ -60,14 +61,17 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	{
 		LOGDXMESSAGES();
 		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, result);
+		return;
 	}
+
+	HRESULT hr;
 
 	//getting swap chain buffer
 	ID3D11Resource* backBuffer = NULL;
-	swapchain->lpVtbl->GetBuffer(swapchain, 0, &IID_ID3D11Resource, &backBuffer);
+	DXFUNCTIONFAILED(swapchain->lpVtbl->GetBuffer(swapchain, 0, &IID_ID3D11Resource, &backBuffer));
 	
 	//create render target from back buffer
-	device->lpVtbl->CreateRenderTargetView(device, backBuffer, NULL, &renderTargetView);
+	DXFUNCTIONFAILED(device->lpVtbl->CreateRenderTargetView(device, backBuffer, NULL, &renderTargetView));
 	backBuffer->lpVtbl->Release(backBuffer);
 
 	LogInfo(L"DX3D device created succesfully");
