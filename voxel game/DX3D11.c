@@ -50,7 +50,7 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 
 	sd.OutputWindow = hwnd;
 	sd.Windowed = true;
-	
+
 	int DeviceFlags = 0;
 
 #ifdef _DEBUG
@@ -58,12 +58,12 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 #endif
 
 	HRESULT result = D3D11CreateDeviceAndSwapChain(
-	NULL,
-	D3D_DRIVER_TYPE_HARDWARE,
-	NULL, D3D11_CREATE_DEVICE_DEBUG,
-	NULL, 0,
-	D3D11_SDK_VERSION,	&sd, &swapchain,
-	&device, NULL, &deviceContext);
+		NULL,
+		D3D_DRIVER_TYPE_HARDWARE,
+		NULL, D3D11_CREATE_DEVICE_DEBUG,
+		NULL, 0,
+		D3D11_SDK_VERSION, &sd, &swapchain,
+		&device, NULL, &deviceContext);
 
 #ifdef _DEBUG
 	setupInfoManager();
@@ -85,17 +85,13 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	//getting swap chain buffer
 	ID3D11Resource* backBuffer = NULL;
 	DXFUNCTIONFAILED(swapchain->lpVtbl->GetBuffer(swapchain, 0, &IID_ID3D11Resource, &backBuffer));
-	
+
 	//create render target from back buffer
 	DXFUNCTIONFAILED(device->lpVtbl->CreateRenderTargetView(device, backBuffer, NULL, &renderTargetView));
 	backBuffer->lpVtbl->Release(backBuffer);
 
-	//bind vertex buffer
-	deviceContext->lpVtbl->IASetVertexBuffers(deviceContext, 0, 1, &vertexBuffers, &VertexSizeInBytes, &offset);
-
-	//bind index buffer
-	deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, IndexBuffer, DXGI_FORMAT_R16_UINT, 0);
-	LogInfo(L"pipeline set");
+	//set primitive topology
+	deviceContext->lpVtbl->IASetPrimitiveTopology(deviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	//create vertex shader
 	ID3DBlob* vertexShaderBlob = NULL;
@@ -113,6 +109,15 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	deviceContext->lpVtbl->VSSetShader(deviceContext, vertexShader, NULL, 0);
 	deviceContext->lpVtbl->PSSetShader(deviceContext, pixelShader, NULL, 0);
 
+	//set viewport
+	D3D11_VIEWPORT vp = {0};
+	//vp.Width ;
+
+	//set render target view
+	deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, NULL);
+	
+
+	LogInfo(L"pipeline set");
 }
 
 void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
@@ -130,6 +135,9 @@ void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
 	D3D11_SUBRESOURCE_DATA sd = {0};
 	sd.pSysMem = vertexArray;
 	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &vertexBuffers[0]));
+
+	//bind vertex buffer
+	deviceContext->lpVtbl->IASetVertexBuffers(deviceContext, 0, 1, &vertexBuffers, &VertexSizeInBytes, &offset);
 }
 
 void createIndexDataBuffer(void* indexArray, int sizeInBytes)
@@ -147,6 +155,9 @@ void createIndexDataBuffer(void* indexArray, int sizeInBytes)
 	D3D11_SUBRESOURCE_DATA sd = { 0 };
 	sd.pSysMem = indexArray;
 	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &IndexBuffer));
+
+	//bind index buffer
+	deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, IndexBuffer, DXGI_FORMAT_R16_UINT, 0);
 }
 
 

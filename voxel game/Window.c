@@ -13,9 +13,18 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 const WCHAR* className = L"VoxelGameClass";
 HINSTANCE wndInstance;
 
+int width = 0;
+int height = 0;
+
+int getWindowheight() { return height;}
+int getWindowWidth() { return width;}
+
 HWND CreateWindowInstance(int width, int height, WCHAR* name)
 {
 	wndInstance = GetModuleHandle(NULL);
+
+	width = width;
+	height = height;
 
 	//creating and registering a window class that should have its own device context this is for direct3D stuff in the future
 	WNDCLASSEX wc = {0};

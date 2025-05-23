@@ -23,7 +23,7 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 		return RC_WND_EXCEPTION;
 	}
 	LogInfo(L"created window with dimesions %u x %u", width, height);
-	
+
 	createBlock();
 
 	//start application loop
