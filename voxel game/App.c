@@ -2,6 +2,7 @@
 #include "window.h"
 #include "keyboard.h"
 #include "DX3D11.h"
+#include "chunk.h"
 
 #define MODULE L"APP"
 #include "Logger.h"
@@ -23,6 +24,8 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 	}
 	LogInfo(L"created window with dimesions %u x %u", width, height);
 	
+	createBlock();
+
 	//start application loop
 	LogInfo(L"Starting App loop...");
 	while (TRUE)
@@ -30,9 +33,15 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 		int ecode;
 		if (ecode = ProcessMessages())
 		{
+			destroyBlock();
 			g_hwnd = NULL;
 			CleanupWindow();
 			return ecode;
+
+#ifdef _DEBUG
+			logDXMessages();
+#endif // _DEBUG
+
 		}
 		//game logic
 		DoFrameLogic();

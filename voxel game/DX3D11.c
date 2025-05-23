@@ -12,6 +12,10 @@ ID3D11DeviceContext* deviceContext = NULL;
 ID3D11RenderTargetView* renderTargetView = NULL;
 
 ID3D11Buffer* vertexBuffers[32];
+ID3D11Buffer* IndexBuffer;
+
+UINT offset = 0;
+UINT VertexSizeInBytes = sizeof(vertex);
 
 DXGI_SWAP_CHAIN_DESC sd = {
 	.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
@@ -38,6 +42,7 @@ DXGI_SWAP_CHAIN_DESC sd = {
 #define DXFUNCTIONFAILED(hrcall) if(FAILED(hr = (hrcall))){ LOGDXMESSAGES(); LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr); return;}
 void CreateDX3D11DeviceForWindow(HWND hwnd)
 {
+
 	sd.OutputWindow = hwnd;
 	sd.Windowed = true;
 	
@@ -76,14 +81,22 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	DXFUNCTIONFAILED(device->lpVtbl->CreateRenderTargetView(device, backBuffer, NULL, &renderTargetView));
 	backBuffer->lpVtbl->Release(backBuffer);
 
+	//bind vertex buffer
+	deviceContext->lpVtbl->IASetVertexBuffers(deviceContext, 0, 1, vertexBuffers, &VertexSizeInBytes, &offset);
+
+	//bind index buffer
+	deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, IndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+
 	LogInfo(L"DX3D device created succesfully");
 }
 
 void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
 {
+	HRESULT hr;
+
 	D3D11_BUFFER_DESC bd = {0};
 	bd.ByteWidth = sizeInBytes;
-	bd.Usage = D3D11_USAGE_DYNAMIC;
+	bd.Usage = D3D11_USAGE_DEFAULT;
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	bd.MiscFlags = 0;
@@ -91,10 +104,25 @@ void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
 
 	D3D11_SUBRESOURCE_DATA sd = {0};
 	sd.pSysMem = vertexArray;
-	device->lpVtbl->CreateBuffer(device, &bd, &sd, vertexBuffers[0]);
+	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &vertexBuffers[0]));
 }
 
+void createIndexDataBuffer(void* indexArray, int sizeInBytes)
+{
+	HRESULT hr;
 
+	D3D11_BUFFER_DESC bd = { 0 };
+	bd.ByteWidth = sizeInBytes;
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	bd.CPUAccessFlags = 0;
+	bd.MiscFlags = 0;
+	bd.StructureByteStride = sizeof(int);
+
+	D3D11_SUBRESOURCE_DATA sd = { 0 };
+	sd.pSysMem = indexArray;
+	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &IndexBuffer));
+}
 
 
 void DestroyDX3D11DeviceForWindow()
@@ -118,6 +146,20 @@ void DestroyDX3D11DeviceForWindow()
 	{
 		renderTargetView->lpVtbl->Release(renderTargetView);
 	}
+
+	for (size_t i = 0; i < 32; i++)
+	{
+		if (vertexBuffers[i])
+		{
+			vertexBuffers[i]->lpVtbl->Release(vertexBuffers[i]);
+		}
+	}
+
+	if (IndexBuffer)
+	{
+		IndexBuffer->lpVtbl->Release(IndexBuffer);
+	}
+
 }
 
 void EndFrame()
@@ -125,7 +167,7 @@ void EndFrame()
 	float colour[4] = {0.0f, 0.7f, 1.0f, 1.0f};
 	deviceContext->lpVtbl->ClearRenderTargetView(deviceContext,renderTargetView, colour);
 
-	//deviceContext->lpVtbl->Draw(deviceContext, 3, 0);
+	deviceContext->lpVtbl->Draw(deviceContext, 3, 0);
 
 	HRESULT hr;
 	if (FAILED(hr = swapchain->lpVtbl->Present(swapchain, 1u, 0u)))

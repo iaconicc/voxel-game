@@ -175,9 +175,6 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 	//closing of window and destruction of resources that belong to it
 	case WM_CLOSE:
 		PostQuitMessage(1);
-		DestroyKeyboardModuleAndRevokeOwnership(&keyboardops);
-		DestroyMouseModuleAndRevokeOwnership(&mouseOps);
-		DestroyDX3D11DeviceForWindow();
 		DestroyWindow(hWnd);
 		break;
 	}
@@ -194,6 +191,9 @@ int ProcessMessages()
 
 		if (msg.message == WM_QUIT)
 		{
+			DestroyKeyboardModuleAndRevokeOwnership(&keyboardops);
+			DestroyMouseModuleAndRevokeOwnership(&mouseOps);
+			DestroyDX3D11DeviceForWindow();
 			return msg.wParam;
 		}
 
