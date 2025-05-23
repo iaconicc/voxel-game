@@ -178,6 +178,7 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 		DestroyKeyboardModuleAndRevokeOwnership(&keyboardops);
 		DestroyMouseModuleAndRevokeOwnership(&mouseOps);
 		DestroyDX3D11DeviceForWindow();
+		DestroyWindow(hWnd);
 		break;
 	}
 

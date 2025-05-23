@@ -77,6 +77,15 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	LogInfo(L"DX3D device created succesfully");
 }
 
+
+ID3D11Buffer* vertexBuffers[32];
+
+void createVertexBufferAndAppendToList()
+{
+	
+}
+
+
 void DestroyDX3D11DeviceForWindow()
 {
 	if (swapchain)
@@ -105,7 +114,7 @@ void EndFrame()
 	float colour[4] = {0.0f, 0.7f, 1.0f, 1.0f};
 	deviceContext->lpVtbl->ClearRenderTargetView(deviceContext,renderTargetView, colour);
 
-	//deviceContext->lpVtbl->Draw(deviceContext, 1, 0);
+	//deviceContext->lpVtbl->Draw(deviceContext, 3, 0);
 
 	HRESULT hr;
 	if (FAILED(hr = swapchain->lpVtbl->Present(swapchain, 1u, 0u)))
