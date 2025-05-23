@@ -3,9 +3,9 @@
 #include <d3d11.h>
 
 typedef struct {
-	int x;
-	int y;
-	int z;
+	float x;
+	float y;
+	float z;
 }vertex;
 
 void CreateDX3D11DeviceForWindow(HWND hwnd);
