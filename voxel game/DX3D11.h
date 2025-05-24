@@ -16,7 +16,7 @@ typedef struct {
 }MatrixBuffers;
 
 void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes);
-void createIndexDataBuffer(void* indexArray, int sizeInBytes);
+void createIndexDataBuffer(void* indexArray, int sizeInBytes, int numberOfElements);
 
 void UpdateOnResize(int width, int height);
 void toggleFullScreen();

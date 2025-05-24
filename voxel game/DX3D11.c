@@ -296,7 +296,8 @@ void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
 	deviceContext->lpVtbl->IASetVertexBuffers(deviceContext, 0, 1, &vertexBuffers, &VertexSizeInBytes, &offset);
 }
 
-void createIndexDataBuffer(void* indexArray, int sizeInBytes)
+int numberOfIndexes = 0;
+void createIndexDataBuffer(void* indexArray, int sizeInBytes, int numberOfElements)
 {
 	HRESULT hr;
 
@@ -314,6 +315,8 @@ void createIndexDataBuffer(void* indexArray, int sizeInBytes)
 
 	//bind index buffer
 	deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+	numberOfIndexes = numberOfElements;
 }
 
 
@@ -435,7 +438,7 @@ void EndFrame()
 	float colour[4] = {0.0f, 0.7f, 1.0f, 1.0f};
 	deviceContext->lpVtbl->ClearRenderTargetView(deviceContext,renderTargetView, colour);
 
-	deviceContext->lpVtbl->DrawIndexed(deviceContext, 36, 0, 0);
+	deviceContext->lpVtbl->DrawIndexed(deviceContext, numberOfIndexes, 0, 0);
 
 	HRESULT hr;
 	if (FAILED(hr = swapchain->lpVtbl->Present(swapchain, 1u, 0u)))
