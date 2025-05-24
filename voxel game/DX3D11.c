@@ -1,5 +1,6 @@
 #include "DX3D11.h"
 #include <d3dcompiler.h>
+#include <cglm.h>
 
 #define MODULE L"DX3D11"
 #include "Logger.h"
@@ -137,7 +138,6 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 
 	//set render target view
 	deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, NULL);
-	
 
 	LogInfo(L"pipeline set");
 }
@@ -234,8 +234,15 @@ void DestroyDX3D11DeviceForWindow()
 	}
 }
 
+static void updateMatrix()
+{
+	
+}
+
 void EndFrame()
 {
+	updateMatrix();
+
 	deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, NULL);
 
 	float colour[4] = {0.0f, 0.7f, 1.0f, 1.0f};
