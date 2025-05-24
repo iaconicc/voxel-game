@@ -1,6 +1,5 @@
 #include "DX3D11.h"
 #include <d3dcompiler.h>
-#include <cglm.h>
 
 #define MODULE L"DX3D11"
 #include "Logger.h"
@@ -14,8 +13,13 @@ ID3D11Device* device = NULL;
 ID3D11DeviceContext* deviceContext = NULL;
 ID3D11RenderTargetView* renderTargetView = NULL;
 
+//vertex and index buffers
 ID3D11Buffer* vertexBuffers[32];
 ID3D11Buffer* IndexBuffer = NULL;
+
+//constant buffers (matrixes)
+MatrixBuffers matrixBuffer;
+ID3D11Buffer* DXMatrixBuffer = NULL;
 
 ID3D11VertexShader* vertexShader = NULL;
 ID3D11PixelShader* pixelShader = NULL;
@@ -65,7 +69,7 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	HRESULT result = D3D11CreateDeviceAndSwapChain(
 		NULL,
 		D3D_DRIVER_TYPE_HARDWARE,
-		NULL, D3D11_CREATE_DEVICE_DEBUG,
+		NULL, DeviceFlags,
 		NULL, 0,
 		D3D11_SDK_VERSION, &sd, &swapchain,
 		&device, NULL, &deviceContext);
@@ -113,6 +117,30 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	DXFUNCTIONFAILED(device->lpVtbl->CreateInputLayout(device, &ied, 1, vertexShaderBlob->lpVtbl->GetBufferPointer(vertexShaderBlob), vertexShaderBlob->lpVtbl->GetBufferSize(vertexShaderBlob), &inputLayout));
 	deviceContext->lpVtbl->IASetInputLayout(deviceContext, inputLayout);
 
+	//calculate the perspective projection matrix
+	float aspectRatio = (float)generatedSD.BufferDesc.Width / (float)generatedSD.BufferDesc.Height;
+	float fov = glm_rad(70.0f);
+	float nearPlane = 0.1f;
+	float farPlane = 100.0f;
+
+	glm_perspective(fov, aspectRatio, nearPlane, farPlane, matrixBuffer.projectionMatrix);
+	glm_mat4_transpose(matrixBuffer.projectionMatrix);
+
+	//create buffer for matrixes
+	D3D11_BUFFER_DESC mbd = { 0 };
+	mbd.ByteWidth = sizeof(MatrixBuffers);
+	mbd.Usage = D3D11_USAGE_DYNAMIC;
+	mbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	mbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	mbd.MiscFlags = 0;
+	mbd.StructureByteStride = 0;
+
+	D3D11_SUBRESOURCE_DATA msd = { 0 };
+	msd.pSysMem = &matrixBuffer;
+	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &mbd, &msd, &DXMatrixBuffer));
+
+	deviceContext->lpVtbl->VSSetConstantBuffers(deviceContext, 0, 1, &DXMatrixBuffer);
+
 	//create pixel shader
 	ID3DBlob* pixelShaderBlob = NULL;
 	DXFUNCTIONFAILED(D3DReadFileToBlob(L"PixelShader.cso", &pixelShaderBlob));
@@ -138,6 +166,8 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 
 	//set render target view
 	deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, NULL);
+
+	deviceContext->lpVtbl->RSSetState(deviceContext, NULL);
 
 	LogInfo(L"pipeline set");
 }
@@ -179,7 +209,7 @@ void createIndexDataBuffer(void* indexArray, int sizeInBytes)
 	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &IndexBuffer));
 
 	//bind index buffer
-	deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, IndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+	deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 }
 
 
@@ -232,16 +262,43 @@ void DestroyDX3D11DeviceForWindow()
 	{
 		inputLayout->lpVtbl->Release(inputLayout);
 	}
+
+	if (DXMatrixBuffer)
+	{
+		DXMatrixBuffer->lpVtbl->Release(DXMatrixBuffer);
+	}
 }
 
-static void updateMatrix()
-{
-	
+static void updateMatrix(float angle)
+{	
+	D3D11_MAPPED_SUBRESOURCE map = {0};
+
+	//calculate a transform matrixes
+	glm_mat4_identity(matrixBuffer.transformationMatrix);
+
+	vec3 translation = { 0.0f, 0.0f, -3.0f };
+	glm_translate(matrixBuffer.transformationMatrix, translation);
+
+	float angleRadians = glm_rad(angle);
+	vec3 rotationAxis = { 0.0f, 1.0f, 0.0f };
+	glm_rotate(matrixBuffer.transformationMatrix, angleRadians, rotationAxis);
+
+	vec3 scale = { 1.0f, 1.0f, 1.0f };
+	glm_scale(matrixBuffer.transformationMatrix, scale);
+
+	glm_mat4_transpose(matrixBuffer.transformationMatrix);
+
+	HRESULT hr;
+	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, DXMatrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map));
+	memcpy(map.pData, &matrixBuffer, sizeof(MatrixBuffers));
+	deviceContext->lpVtbl->Unmap(deviceContext, DXMatrixBuffer, 0);
 }
 
+float ang = 0;
 void EndFrame()
 {
-	updateMatrix();
+	ang -= 0.1f;
+	updateMatrix(ang);
 
 	deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, NULL);
 
