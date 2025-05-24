@@ -12,10 +12,13 @@ typedef struct {
 typedef struct {
 	mat4 transformationMatrix;
 	mat4 projectionMatrix;
+	mat4 viewMatrix;
 }MatrixBuffers;
 
 void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes);
 void createIndexDataBuffer(void* indexArray, int sizeInBytes);
+
+void UpdateOnResize(int width, int height);
 
 void CreateDX3D11DeviceForWindow(HWND hwnd);
 void DestroyDX3D11DeviceForWindow();

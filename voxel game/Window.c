@@ -50,19 +50,19 @@ HWND CreateWindowInstance(int width, int height, WCHAR* name)
 	LogDebug(L"Registered window class with name: %s and style: 0x%x", wc.lpszClassName, wc.style);
 
 	//calculate window size based on desired client window size
-	uint16_t wndStyle = WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU;
+	uint16_t wndStyle = WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_MAXIMIZEBOX | WS_SIZEBOX;
 	RECT wr = {0};
 	wr.left = 100;
 	wr.right = width + wr.left;
 	wr.top = 100;
 	wr.bottom = height + wr.top;
-	AdjustWindowRect(&wr, WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU, FALSE);
+	AdjustWindowRect(&wr, WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_MAXIMIZEBOX | WS_SIZEBOX, FALSE);
 	//creation of window
 	HWND hwnd = CreateWindowEx(
 		0,
 		className,
 		name,
-		WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU,
+		WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_MAXIMIZEBOX | WS_SIZEBOX,
 		CW_USEDEFAULT, CW_USEDEFAULT, 
 		wr.right - wr.left, wr.bottom - wr.top,
 		NULL,
@@ -214,9 +214,20 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 			mouseOps->ClearState();
 		}
 		break;
+	//respond to resizing
+	case WM_SIZE:
+	{
+		uint16_t width = LOWORD(lParam);
+		uint16_t height = HIWORD(lParam);
+		UpdateOnResize((int)width, (int) height);
+		break;
+	}
 	//closing of window and destruction of resources that belong to it
 	case WM_CLOSE:
 		PostQuitMessage(1);
+		DestroyKeyboardModuleAndRevokeOwnership(&keyboardops);
+		DestroyMouseModuleAndRevokeOwnership(&mouseOps);
+		DestroyDX3D11DeviceForWindow();
 		DestroyWindow(hWnd);
 		break;
 	}

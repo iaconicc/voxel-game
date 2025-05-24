@@ -45,8 +45,6 @@ DXGI_SWAP_CHAIN_DESC sd = {
 	.SampleDesc.Quality = 0,
 };
 
-DXGI_SWAP_CHAIN_DESC generatedSD = {0};
-
 #ifdef _DEBUG
 #define LOGDXMESSAGES() logDXMessages()
 #else
@@ -54,6 +52,53 @@ DXGI_SWAP_CHAIN_DESC generatedSD = {0};
 #endif
 
 #define DXFUNCTIONFAILED(hrcall) if(FAILED(hr = (hrcall))){ LOGDXMESSAGES(); LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr); return;}
+
+static void CalculatePerspective(int width, int height)
+{
+	//calculate the perspective projection matrix
+	float aspectRatio =(float) width /(float) height;
+	float fov = glm_rad(70.0f);
+	float nearPlane = 0.1f;
+	float farPlane = 100.0f;
+
+	glm_perspective(fov, aspectRatio, nearPlane, farPlane, matrixBuffer.projectionMatrix);
+	glm_mat4_transpose(matrixBuffer.projectionMatrix);
+}
+
+static void CalculatePerspectiveAndSetViewport()
+{
+	//set viewport
+	D3D11_VIEWPORT vp = { 0 };
+	vp.Width = (float)sd.BufferDesc.Width;
+	vp.Height = (float) sd.BufferDesc.Height;
+	vp.MinDepth = 0;
+	vp.MaxDepth = 1;
+	vp.TopLeftX = 0;
+	vp.TopLeftY = 0;
+	deviceContext->lpVtbl->RSSetViewports(deviceContext, 1, &vp);
+
+	CalculatePerspective(sd.BufferDesc.Width, sd.BufferDesc.Height);
+}
+
+void UpdateOnResize(int width, int height)
+{
+	CalculatePerspective(width, height);
+}
+
+static void CreateRenderTargetFromSwapChain()
+{
+	HRESULT hr;
+	//getting swap chain buffer
+	ID3D11Resource* backBuffer = NULL;
+	DXFUNCTIONFAILED(swapchain->lpVtbl->GetBuffer(swapchain, 0, &IID_ID3D11Resource, &backBuffer));
+
+	//create render target from back buffer
+	DXFUNCTIONFAILED(device->lpVtbl->CreateRenderTargetView(device, backBuffer, NULL, &renderTargetView));
+	backBuffer->lpVtbl->Release(backBuffer);
+}
+
+
+
 void CreateDX3D11DeviceForWindow(HWND hwnd)
 {
 
@@ -91,16 +136,15 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	//setup pipeline
 
 	HRESULT hr;
+
 	//get updated swap chain descriptor
-	DXFUNCTIONFAILED(swapchain->lpVtbl->GetDesc(swapchain, &generatedSD));
+	DXFUNCTIONFAILED(swapchain->lpVtbl->GetDesc(swapchain, &sd));
 
-	//getting swap chain buffer
-	ID3D11Resource* backBuffer = NULL;
-	DXFUNCTIONFAILED(swapchain->lpVtbl->GetBuffer(swapchain, 0, &IID_ID3D11Resource, &backBuffer));
+	CalculatePerspectiveAndSetViewport();
+	CreateRenderTargetFromSwapChain();
 
-	//create render target from back buffer
-	DXFUNCTIONFAILED(device->lpVtbl->CreateRenderTargetView(device, backBuffer, NULL, &renderTargetView));
-	backBuffer->lpVtbl->Release(backBuffer);
+	//set render target view
+	deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, NULL);
 
 	//set primitive topology
 	deviceContext->lpVtbl->IASetPrimitiveTopology(deviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -116,15 +160,6 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	};
 	DXFUNCTIONFAILED(device->lpVtbl->CreateInputLayout(device, &ied, 1, vertexShaderBlob->lpVtbl->GetBufferPointer(vertexShaderBlob), vertexShaderBlob->lpVtbl->GetBufferSize(vertexShaderBlob), &inputLayout));
 	deviceContext->lpVtbl->IASetInputLayout(deviceContext, inputLayout);
-
-	//calculate the perspective projection matrix
-	float aspectRatio = (float)generatedSD.BufferDesc.Width / (float)generatedSD.BufferDesc.Height;
-	float fov = glm_rad(70.0f);
-	float nearPlane = 0.1f;
-	float farPlane = 100.0f;
-
-	glm_perspective(fov, aspectRatio, nearPlane, farPlane, matrixBuffer.projectionMatrix);
-	glm_mat4_transpose(matrixBuffer.projectionMatrix);
 
 	//create buffer for matrixes
 	D3D11_BUFFER_DESC mbd = { 0 };
@@ -154,29 +189,15 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 	deviceContext->lpVtbl->VSSetShader(deviceContext, vertexShader, NULL, 0);
 	deviceContext->lpVtbl->PSSetShader(deviceContext, pixelShader, NULL, 0);
 
-	//set viewport
-	D3D11_VIEWPORT vp = {0};
-	vp.Width = generatedSD.BufferDesc.Width;
-	vp.Height = generatedSD.BufferDesc.Height;
-	vp.MinDepth = 0;
-	vp.MaxDepth = 1;
-	vp.TopLeftX = 0;
-	vp.TopLeftY = 0;
-	deviceContext->lpVtbl->RSSetViewports(deviceContext, 1, &vp);
-
-	//set render target view
-	deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, NULL);
-
-	deviceContext->lpVtbl->RSSetState(deviceContext, NULL);
-
 	LogInfo(L"pipeline set");
 }
+
 
 void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
 {
 	HRESULT hr;
 
-	D3D11_BUFFER_DESC bd = {0};
+	D3D11_BUFFER_DESC bd = { 0 };
 	bd.ByteWidth = sizeInBytes;
 	bd.Usage = D3D11_USAGE_DEFAULT;
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
@@ -184,7 +205,7 @@ void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
 	bd.MiscFlags = 0;
 	bd.StructureByteStride = sizeof(vertex);
 
-	D3D11_SUBRESOURCE_DATA sd = {0};
+	D3D11_SUBRESOURCE_DATA sd = { 0 };
 	sd.pSysMem = vertexArray;
 	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &vertexBuffers[0]));
 
@@ -218,21 +239,25 @@ void DestroyDX3D11DeviceForWindow()
 	if (swapchain)
 	{
 		swapchain->lpVtbl->Release(swapchain);
+		swapchain = NULL;
 	}
 
 	if (device)
 	{
 		device->lpVtbl->Release(device);
+		device = NULL;
 	}
 
 	if (deviceContext)
 	{
 		deviceContext->lpVtbl->Release(deviceContext);
+		deviceContext = NULL;
 	}
 
 	if (renderTargetView)
 	{
 		renderTargetView->lpVtbl->Release(renderTargetView);
+		renderTargetView = NULL;
 	}
 
 	for (size_t i = 0; i < 32; i++)
@@ -240,32 +265,38 @@ void DestroyDX3D11DeviceForWindow()
 		if (vertexBuffers[i])
 		{
 			vertexBuffers[i]->lpVtbl->Release(vertexBuffers[i]);
+			vertexBuffers[i] = NULL;
 		}
 	}
 
 	if (IndexBuffer)
 	{
 		IndexBuffer->lpVtbl->Release(IndexBuffer);
+		IndexBuffer = NULL;
 	}
 
 	if (vertexShader)
 	{
 		vertexShader->lpVtbl->Release(vertexShader);
+		vertexShader = NULL;
 	}
 
 	if (pixelShader)
 	{
 		pixelShader->lpVtbl->Release(pixelShader);
+		pixelShader = NULL;
 	}
 
 	if (inputLayout)
 	{
 		inputLayout->lpVtbl->Release(inputLayout);
+		inputLayout = NULL;
 	}
 
 	if (DXMatrixBuffer)
 	{
 		DXMatrixBuffer->lpVtbl->Release(DXMatrixBuffer);
+		DXMatrixBuffer = NULL;
 	}
 }
 
@@ -287,6 +318,15 @@ static void updateMatrix(float angle)
 	glm_scale(matrixBuffer.transformationMatrix, scale);
 
 	glm_mat4_transpose(matrixBuffer.transformationMatrix);
+
+	//calculate view matrix
+	vec3 cameraPosition = { 0.0f, 0.0f, 5.0f }; // Camera position in world space
+	vec3 cameraTarget = { 0.0f, 0.0f, 0.0f };   // Point the camera is looking at
+	vec3 upVector = { 0.0f, 1.0f, 0.0f };       // Up direction
+
+	glm_lookat(cameraPosition, cameraTarget, upVector, matrixBuffer.viewMatrix);
+
+	glm_mat4_transpose(matrixBuffer.viewMatrix);
 
 	HRESULT hr;
 	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, DXMatrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map));
