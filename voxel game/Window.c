@@ -100,7 +100,7 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 		if (!InitMouseModuleAndGetOwnership(&mouseOps)){
 			LogException(RC_MOUSE_EXCEPTION, L"wnd failed to get mouse module");
 		}
-		CreateDX3D11DeviceForWindow(hWnd);
+		CreateDX3D11DeviceForWindow(hWnd, width, height);
 		break;
 	//this section handles keyboard events
 	case WM_SYSKEYDOWN:

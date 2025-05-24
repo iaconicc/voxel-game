@@ -21,6 +21,6 @@ void createIndexDataBuffer(void* indexArray, int sizeInBytes);
 void UpdateOnResize(int width, int height);
 void toggleFullScreen();
 
-void CreateDX3D11DeviceForWindow(HWND hwnd);
+void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height);
 void DestroyDX3D11DeviceForWindow();
 void EndFrame();

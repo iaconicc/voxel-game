@@ -10,6 +10,8 @@
 #pragma comment(lib, "D3DCompiler.lib")
 
 HWND hwnd;
+int windowedwidth;
+int windowedheight;
 
 IDXGISwapChain* swapchain = NULL;
 ID3D11Device* device = NULL;
@@ -112,19 +114,37 @@ void toggleFullScreen()
 
 	isWindowed = !isWindowed;
 
+	DXGI_MODE_DESC md = { 0 };
 	if (isWindowed) {
 	DXFUNCTIONFAILED(swapchain->lpVtbl->SetFullscreenState(swapchain, FALSE, NULL));
 	}
 	if (!isWindowed) {
 		DXFUNCTIONFAILED(swapchain->lpVtbl->SetFullscreenState(swapchain, TRUE, NULL));
+
+		//making sure we get the highest resolution possible
+		IDXGIOutput* output;
+		DXFUNCTIONFAILED(swapchain->lpVtbl->GetContainingOutput(swapchain, &output));
+
+		//checking how many modes are available
+		UINT modesAvailable;
+		DXFUNCTIONFAILED(output->lpVtbl->GetDisplayModeList(output, DXGI_FORMAT_B8G8R8A8_UNORM, 0, &modesAvailable, NULL));
+		DXGI_MODE_DESC* modeList = malloc(sizeof(DXGI_MODE_DESC) * modesAvailable);
+		DXFUNCTIONFAILED(output->lpVtbl->GetDisplayModeList(output, DXGI_FORMAT_B8G8R8A8_UNORM, 0, &modesAvailable, modeList));
+		md = modeList[modesAvailable - 1];
+		free(modeList);
+		output->lpVtbl->Release(output);
+	}
+	else {
+		md.Width = windowedwidth;
+		md.Height = windowedheight;
 	}
 
 	// Resize the swap chain buffers
 	DXFUNCTIONFAILED(swapchain->lpVtbl->ResizeBuffers(
 		swapchain,
 		0, // Use the same number of buffers
-		0, // Automatically match the window width
-		0, // Automatically match the window height
+		md.Width, // Automatically match the window width
+		md.Height, // Automatically match the window height
 		DXGI_FORMAT_B8G8R8A8_UNORM,
 		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
 	));
@@ -143,12 +163,17 @@ void toggleFullScreen()
 
 void UpdateOnResize(int width, int height)
 {
+	windowedheight = height;
+	windowedwidth = width;
 	CalculatePerspective(width, height);
 }
 
 
-void CreateDX3D11DeviceForWindow(HWND hwnd)
+void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 {
+	windowedheight = height;
+	windowedwidth = width;
+
 	hwnd = hwnd;
 	sd.OutputWindow = hwnd;
 	sd.Windowed = true;
