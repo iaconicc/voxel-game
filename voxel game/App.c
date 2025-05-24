@@ -14,8 +14,15 @@ static void DoFrameLogic()
 {
 	if(keyIsPressed('W'))
 		MoveCameraForward(0.01);
-	
-	EndFrame();
+
+	if (keyIsPressed('S'))
+		MoveCameraBack(0.01);
+
+	if (keyIsPressed('A'))
+		StrafeCameraLeft(0.01);
+
+	if (keyIsPressed('D'))
+		StrafeCameraRight(0.01);
 }
 
 int ApplicationStartAndRun(int width, int height, WCHAR* name)
@@ -42,15 +49,9 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 			g_hwnd = NULL;
 			CleanupWindow();
 			return ecode;
-
-#ifdef _DEBUG
-			logDXMessages();
-#endif // _DEBUG
-
 		}
-		//game logic
 		DoFrameLogic();
-
+		EndFrame();
 #ifdef _DEBUG
 		logDXMessages();
 #endif // _DEBUG

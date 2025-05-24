@@ -14,6 +14,8 @@ ID3D11Device* device = NULL;
 ID3D11DeviceContext* deviceContext = NULL;
 ID3D11RenderTargetView* renderTargetView = NULL;
 
+ID3D11DepthStencilState* depthStencilState;
+
 //vertex and index buffers
 ID3D11Buffer* vertexBuffers[32];
 ID3D11Buffer* IndexBuffer = NULL;
@@ -143,6 +145,16 @@ void CreateDX3D11DeviceForWindow(HWND hwnd)
 
 	CalculatePerspectiveAndSetViewport();
 	CreateRenderTargetFromSwapChain();
+
+	//setup depth buffer
+	D3D11_DEPTH_STENCIL_DESC dsDesc = { 0 };
+	dsDesc.DepthEnable = true;
+	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
+
+	DXFUNCTIONFAILED(device->lpVtbl->CreateDepthStencilState(device, &dsDesc, &depthStencilState));
+	
+	deviceContext->lpVtbl->OMSetDepthStencilState(deviceContext, depthStencilState, 1u);
 
 	//set render target view
 	deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, NULL);
@@ -298,6 +310,12 @@ void DestroyDX3D11DeviceForWindow()
 	{
 		DXMatrixBuffer->lpVtbl->Release(DXMatrixBuffer);
 		DXMatrixBuffer = NULL;
+	}
+
+	if (depthStencilState)
+	{
+		depthStencilState->lpVtbl->Release(depthStencilState);
+		depthStencilState = NULL;
 	}
 }
 

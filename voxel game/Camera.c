@@ -40,3 +40,30 @@ void MoveCameraForward(float displacement)
 
     glm_vec3_add(camera.pos, camera.forward, camera.target);
 }
+
+void MoveCameraBack(float displacement)
+{
+    vec3 movement = { 0.0f, 0.0f, 0.0f };
+    glm_vec3_scale(camera.forward, -displacement, movement);
+    glm_vec3_add(camera.pos, movement, camera.pos);
+
+    glm_vec3_add(camera.pos, camera.forward, camera.target);
+}
+
+void StrafeCameraLeft(float displacement)
+{
+    vec3 movement = { 0.0f, 0.0f, 0.0f };
+    glm_vec3_scale(camera.right, -displacement, movement);
+    glm_vec3_add(camera.pos, movement, camera.pos);
+
+    glm_vec3_add(camera.pos, camera.forward, camera.target);
+}
+
+void StrafeCameraRight(float displacement)
+{
+    vec3 movement = { 0.0f, 0.0f, 0.0f };
+    glm_vec3_scale(camera.right, displacement, movement);
+    glm_vec3_add(camera.pos, movement, camera.pos);
+
+    glm_vec3_add(camera.pos, camera.forward, camera.target);
+}
