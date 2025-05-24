@@ -9,6 +9,8 @@
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "D3DCompiler.lib")
 
+HWND hwnd;
+
 IDXGISwapChain* swapchain = NULL;
 ID3D11Device* device = NULL;
 ID3D11DeviceContext* deviceContext = NULL;
@@ -31,6 +33,8 @@ ID3D11InputLayout* inputLayout = NULL;
 
 UINT offset = 0;
 UINT VertexSizeInBytes = sizeof(vertex);
+
+static bool isWindowed = true;
 
 DXGI_SWAP_CHAIN_DESC sd = {
 	.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
@@ -55,6 +59,7 @@ DXGI_SWAP_CHAIN_DESC sd = {
 #endif
 
 #define DXFUNCTIONFAILED(hrcall) if(FAILED(hr = (hrcall))){ LOGDXMESSAGES(); LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr); return;}
+
 
 static void CalculatePerspective(int width, int height)
 {
@@ -83,11 +88,6 @@ static void CalculatePerspectiveAndSetViewport()
 	CalculatePerspective(sd.BufferDesc.Width, sd.BufferDesc.Height);
 }
 
-void UpdateOnResize(int width, int height)
-{
-	CalculatePerspective(width, height);
-}
-
 static void CreateRenderTargetFromSwapChain()
 {
 	HRESULT hr;
@@ -100,11 +100,56 @@ static void CreateRenderTargetFromSwapChain()
 	backBuffer->lpVtbl->Release(backBuffer);
 }
 
+void toggleFullScreen()
+{
+	HRESULT hr;
+
+	if (renderTargetView)
+	{
+		renderTargetView->lpVtbl->Release(renderTargetView);
+		renderTargetView = NULL;
+	}
+
+	isWindowed = !isWindowed;
+
+	if (isWindowed) {
+	DXFUNCTIONFAILED(swapchain->lpVtbl->SetFullscreenState(swapchain, FALSE, NULL));
+	}
+	if (!isWindowed) {
+		DXFUNCTIONFAILED(swapchain->lpVtbl->SetFullscreenState(swapchain, TRUE, NULL));
+	}
+
+	// Resize the swap chain buffers
+	DXFUNCTIONFAILED(swapchain->lpVtbl->ResizeBuffers(
+		swapchain,
+		0, // Use the same number of buffers
+		0, // Automatically match the window width
+		0, // Automatically match the window height
+		DXGI_FORMAT_B8G8R8A8_UNORM,
+		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
+	));
+
+	DXFUNCTIONFAILED(swapchain->lpVtbl->GetDesc(swapchain, &sd));
+
+	if (isWindowed)
+	{
+		SetWindowLong(hwnd, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_VISIBLE);
+		SetWindowPos(hwnd, HWND_TOP, 0, 0, sd.BufferDesc.Width, sd.BufferDesc.Height, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE);
+	}
+
+	CreateRenderTargetFromSwapChain();
+	CalculatePerspectiveAndSetViewport();
+}
+
+void UpdateOnResize(int width, int height)
+{
+	CalculatePerspective(width, height);
+}
 
 
 void CreateDX3D11DeviceForWindow(HWND hwnd)
 {
-
+	hwnd = hwnd;
 	sd.OutputWindow = hwnd;
 	sd.Windowed = true;
 
@@ -327,16 +372,16 @@ static void updateMatrix()
 	//calculate a transform matrixes
 	glm_mat4_identity(matrixBuffer.transformationMatrix);
 
-	vec3 translation = { 0.0f, 0.0f, -3.0f };
+	vec3 translation = { 0.0f, 0.0f, 0.0f };
 	glm_translate(matrixBuffer.transformationMatrix, translation);
 
-	angle += 0.1;
-	float angleRadians = glm_rad(angle);
-	vec3 rotationAxis = { 0.0f, 1.0f, 0.0f };
-	glm_rotate(matrixBuffer.transformationMatrix, angleRadians, rotationAxis);
+	//angle += 0.1;
+	//float angleRadians = glm_rad(0);
+	//vec3 rotationAxis = { 0.0f, 1.0f, 0.0f };
+	//glm_rotate(matrixBuffer.transformationMatrix, angleRadians, rotationAxis);
 
-	vec3 scale = { 1.0f, 1.0f, 1.0f };
-	glm_scale(matrixBuffer.transformationMatrix, scale);
+	//vec3 scale = { 1.0f, 1.0f, 1.0f };
+	//glm_scale(matrixBuffer.transformationMatrix, scale);
 
 	glm_mat4_transpose(matrixBuffer.transformationMatrix);
 

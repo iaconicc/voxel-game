@@ -13,16 +13,31 @@ HWND g_hwnd;
 static void DoFrameLogic()
 {
 	if(keyIsPressed('W'))
-		MoveCameraForward(0.01);
+		MoveCameraForward(0.1);
 
 	if (keyIsPressed('S'))
-		MoveCameraBack(0.01);
+		MoveCameraBack(0.1);
 
 	if (keyIsPressed('A'))
-		StrafeCameraLeft(0.01);
+		StrafeCameraLeft(0.1);
 
 	if (keyIsPressed('D'))
-		StrafeCameraRight(0.01);
+		StrafeCameraRight(0.1);
+
+	if (keyIsPressed(VK_UP))
+		RotateCam(0, 0.5);
+
+	if (keyIsPressed(VK_DOWN))
+		RotateCam(0.0, -0.5);
+
+	if (keyIsPressed(VK_LEFT))
+		RotateCam(0.5, 0.0);
+
+	if (keyIsPressed(VK_RIGHT))
+		RotateCam(-0.5, 0.0);
+
+	if (keyIsPressed('F'))
+		toggleFullScreen();
 }
 
 int ApplicationStartAndRun(int width, int height, WCHAR* name)

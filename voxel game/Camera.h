@@ -8,3 +8,4 @@ void MoveCameraForward(float displacement);
 void MoveCameraBack(float displacement);
 void StrafeCameraLeft(float displacement);
 void StrafeCameraRight(float displacement);
+void RotateCam(float deltaX, float deltaY);
