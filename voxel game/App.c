@@ -3,6 +3,7 @@
 #include "keyboard.h"
 #include "DX3D11.h"
 #include "chunk.h"
+#include "Camera.h"
 
 #define MODULE L"APP"
 #include "Logger.h"
@@ -11,6 +12,9 @@ HWND g_hwnd;
 
 static void DoFrameLogic()
 {
+	if(keyIsPressed('W'))
+		MoveCameraForward(0.01);
+	
 	EndFrame();
 }
 
@@ -24,6 +28,7 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 	}
 	LogInfo(L"created window with dimesions %u x %u", width, height);
 
+	initialiseCamera();
 	createBlock();
 
 	//start application loop

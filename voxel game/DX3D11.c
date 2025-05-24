@@ -1,4 +1,5 @@
 #include "DX3D11.h"
+#include "Camera.h"
 #include <d3dcompiler.h>
 
 #define MODULE L"DX3D11"
@@ -300,7 +301,8 @@ void DestroyDX3D11DeviceForWindow()
 	}
 }
 
-static void updateMatrix(float angle)
+float angle = 0;
+static void updateMatrix()
 {	
 	D3D11_MAPPED_SUBRESOURCE map = {0};
 
@@ -310,6 +312,7 @@ static void updateMatrix(float angle)
 	vec3 translation = { 0.0f, 0.0f, -3.0f };
 	glm_translate(matrixBuffer.transformationMatrix, translation);
 
+	angle += 0.1;
 	float angleRadians = glm_rad(angle);
 	vec3 rotationAxis = { 0.0f, 1.0f, 0.0f };
 	glm_rotate(matrixBuffer.transformationMatrix, angleRadians, rotationAxis);
@@ -320,9 +323,10 @@ static void updateMatrix(float angle)
 	glm_mat4_transpose(matrixBuffer.transformationMatrix);
 
 	//calculate view matrix
-	vec3 cameraPosition = { 0.0f, 0.0f, 5.0f }; // Camera position in world space
-	vec3 cameraTarget = { 0.0f, 0.0f, 0.0f };   // Point the camera is looking at
+	vec3 cameraPosition; // Camera position in world space
+	vec3 cameraTarget;   // Point the camera is looking at
 	vec3 upVector = { 0.0f, 1.0f, 0.0f };       // Up direction
+	getCameraTargetAndPosition(&cameraPosition, &cameraTarget);
 
 	glm_lookat(cameraPosition, cameraTarget, upVector, matrixBuffer.viewMatrix);
 
@@ -334,11 +338,9 @@ static void updateMatrix(float angle)
 	deviceContext->lpVtbl->Unmap(deviceContext, DXMatrixBuffer, 0);
 }
 
-float ang = 0;
 void EndFrame()
 {
-	ang -= 0.1f;
-	updateMatrix(ang);
+	updateMatrix();
 
 	deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, NULL);
 

@@ -110,16 +110,16 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 			if (!(lParam & 0x40000000) || isAutoRepeatEnabled())
 			{
 				keyboardops->OnKeyPressed(wParam);
-				break;
 			}
 		}
+		break;
 	case WM_SYSKEYUP:
 	case WM_KEYUP:
 		if (keyboardops)
 		{
 			keyboardops->OnKeyReleased(wParam);
-			break;
 		}
+		break;
 	case WM_CHAR:
 		if (keyboardops)
 		{
