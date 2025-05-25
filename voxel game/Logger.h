@@ -40,6 +40,6 @@ void setupInfoManager();
 #define LogWarning(fmt, ...) __Log(LOG_WARNING, MODULE, fmt, __VA_ARGS__);
 #define LogException(type, fmt, ...) PostQuitMessage(type); __LogException(WFILE, __LINE__, type, MODULE, fmt, __VA_ARGS__);
 
-#define LOGWIN32EXCEPTION(type,hr) PostQuitMessage(type); WCHAR* msg = formatWin32ErrorCodes(hr);  __LogException(WFILE, __LINE__, type, MODULE, msg); free(msg)
+#define LOGWIN32EXCEPTION(type,hr) PostQuitMessage(type); msg = formatWin32ErrorCodes(hr);  __LogException(WFILE, __LINE__, type, MODULE, msg); free(msg)
 
 

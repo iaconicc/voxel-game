@@ -100,6 +100,12 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 		if (!InitMouseModuleAndGetOwnership(&mouseOps)){
 			LogException(RC_MOUSE_EXCEPTION, L"wnd failed to get mouse module");
 		}
+		HRESULT hr;
+		WCHAR* msg;
+		if ((hr = CoInitialize(NULL)) != S_OK)
+		{
+			LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
+		}
 		CreateDX3D11DeviceForWindow(hWnd, width, height);
 		break;
 	//this section handles keyboard events
@@ -228,6 +234,7 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 		DestroyKeyboardModuleAndRevokeOwnership(&keyboardops);
 		DestroyMouseModuleAndRevokeOwnership(&mouseOps);
 		DestroyDX3D11DeviceForWindow();
+		CoUninitialize();
 		DestroyWindow(hWnd);
 		break;
 	}

@@ -1,13 +1,7 @@
-float random(float2 uv)
-{
-    return frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453);
-}
+Texture2D tex;
+SamplerState sample;
 
-float4 main(float4 position : SV_POSITION) : SV_TARGET
+float4 main(float2 tc : TexCoord) : SV_TARGET
 {
-    // Generate random values for red, green, and blue channels
-    float r = position.x / position.y;
-    float g = position.y / position.x;
-    
-	return float4(0.0f, 1.0f, 0.0f, 1.0f);
+    return tex.Sample(sample,tc);
 }

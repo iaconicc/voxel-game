@@ -36,7 +36,7 @@ static void DoFrameLogic()
 	if (keyIsPressed(VK_RIGHT))
 		RotateCam(-0.5, 0.0);
 
-	if (keyIsPressed('F'))
+	if (keyIsPressed(VK_F11))
 		toggleFullScreen();
 }
 
