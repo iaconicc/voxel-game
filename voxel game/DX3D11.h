@@ -15,8 +15,8 @@ typedef struct {
 	mat4 viewMatrix;
 }MatrixBuffers;
 
-void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes);
-void createIndexDataBuffer(void* indexArray, int sizeInBytes, int numberOfElements);
+void createVertexBufferAndAppendToList(vec3* vertexArray, int sizeInBytes);
+void createIndexDataBuffer(void* indexArray, int sizeInBytes);
 
 void UpdateOnResize(int width, int height);
 void toggleFullScreen();

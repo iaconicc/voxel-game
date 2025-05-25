@@ -2,6 +2,9 @@
 #include "DX3D11.h"
 #include <cglm.h>
 
+#define MODULE L"chunk"
+#include "Logger.h"
+
 typedef struct {
 	unsigned int index[6];
 }face;
@@ -18,12 +21,13 @@ const static vec3 cubeVertexs[8] = {
 };
 
 const static face cubeFaces[6] = {
-	{0, 3, 1, 1, 3, 2}, //south face
-	{5, 6, 4, 4, 6, 7}, //north face
-	{3, 7, 2, 2, 7, 6}, //top face
-	{1, 5, 0, 0, 5, 4}, //bottom face
-	{4, 7, 0, 0, 7, 3}, //west face
-	{1, 2, 5, 5, 2, 6}, //east face
+	//0, 1, 2, 2, 1, 3
+	{0, 3, 1, 2}, //south face
+	{5, 6, 4, 7}, //north face
+	{3, 7, 2, 6}, //top face
+	{1, 5, 0, 4}, //bottom face
+	{4, 7, 0, 3}, //west face
+	{1, 2, 5, 6}, //east face
 };
 
 const static vec3 faceChecks[6] = {
@@ -79,6 +83,7 @@ static bool checkVoxel(vec3 pos)
 }
 
 int currentVertexindex = 0;
+int currentIndexListindex = 0;
 
 static void addVoxelDataToChunk(vec3 pos)
 {
@@ -89,13 +94,22 @@ static void addVoxelDataToChunk(vec3 pos)
 			glm_vec3_add(pos, faceChecks[f], blockTocheck);
 
 			if (checkVoxel(blockTocheck)) {
-				for (size_t v = 0; v < 6; v++)
+				
+				int baseIndex = currentVertexindex;
+				indexlist[currentIndexListindex++] = baseIndex;
+				indexlist[currentIndexListindex++] = baseIndex + 1;
+				indexlist[currentIndexListindex++] = baseIndex + 2;
+				indexlist[currentIndexListindex++] = baseIndex + 2;
+				indexlist[currentIndexListindex++] = baseIndex + 1;
+				indexlist[currentIndexListindex++] = baseIndex + 3;
+
+				for (size_t v = 0; v < 4; v++)
 				{
 					int FaceIndex = cubeFaces[f].index[v];
 					glm_vec3_add(cubeVertexs[FaceIndex], pos, vertexlist[currentVertexindex]);
-					indexlist[currentVertexindex] = currentVertexindex;
 					currentVertexindex++;
 				}
+
 			}
 		}
 	
@@ -124,16 +138,19 @@ void createBlock()
 					if (checkVoxel(blockToCheck))
 					{
 						indexSize += 6;
-						vertexSize += 6;
+						vertexSize += 4;
 					}
 				}
 			}
 		}
 	}
 
+	
 	//allocate memory enough for both indices and vertexes
 	indexlist = malloc(sizeof(int) * indexSize);
 	vertexlist = malloc(sizeof(vec3) * vertexSize);
+
+	LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexSize, ((sizeof(vec3) * vertexSize)/1000), indexSize, ((sizeof(int) * indexSize)/1000));
 
 	//add vertexs and indices
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
@@ -149,7 +166,7 @@ void createBlock()
 	}
 
 	createVertexBufferAndAppendToList(vertexlist, sizeof(vec3) * vertexSize);
-	createIndexDataBuffer(indexlist, sizeof(int) * indexSize, indexSize);
+	createIndexDataBuffer(indexlist, sizeof(int) * indexSize);
 }
 
 void destroyBlock()

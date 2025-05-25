@@ -9,5 +9,5 @@ float4 main(float4 position : SV_POSITION) : SV_TARGET
     float r = position.x / position.y;
     float g = position.y / position.x;
     
-	return float4(r, g, 0.0f, 1.0f);
+	return float4(0.0f, 1.0f, 0.0f, 1.0f);
 }

@@ -276,7 +276,7 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 }
 
 
-void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
+void createVertexBufferAndAppendToList(vec3* vertexArray, int sizeInBytes)
 {
 	HRESULT hr;
 
@@ -286,7 +286,7 @@ void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	bd.MiscFlags = 0;
-	bd.StructureByteStride = sizeof(vertex);
+	bd.StructureByteStride = sizeof(vec3);
 
 	D3D11_SUBRESOURCE_DATA sd = { 0 };
 	sd.pSysMem = vertexArray;
@@ -297,7 +297,7 @@ void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
 }
 
 int numberOfIndexes = 0;
-void createIndexDataBuffer(void* indexArray, int sizeInBytes, int numberOfElements)
+void createIndexDataBuffer(void* indexArray, int sizeInBytes)
 {
 	HRESULT hr;
 
@@ -316,7 +316,7 @@ void createIndexDataBuffer(void* indexArray, int sizeInBytes, int numberOfElemen
 	//bind index buffer
 	deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
-	numberOfIndexes = numberOfElements;
+	numberOfIndexes = sizeInBytes / sizeof(int);
 }
 
 
