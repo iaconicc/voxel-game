@@ -99,6 +99,49 @@ static void CalculatePerspectiveAndSetViewport()
 	CalculatePerspective(sd.BufferDesc.Width, sd.BufferDesc.Height);
 }
 
+static void createDepthTexture()
+{
+	HRESULT hr;
+	MSG* msg;
+
+	//create depth texture
+	D3D11_TEXTURE2D_DESC dtd = { 0 };
+	dtd.Height = sd.BufferDesc.Height;
+	dtd.Width = sd.BufferDesc.Width;
+	dtd.MipLevels = 1;
+	dtd.ArraySize = 1;
+	dtd.Format = DXGI_FORMAT_D32_FLOAT;
+	dtd.SampleDesc.Count = 1;
+	dtd.SampleDesc.Quality = 0;
+	dtd.Usage = D3D11_USAGE_DEFAULT;
+	dtd.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	DXFUNCTIONFAILED(device->lpVtbl->CreateTexture2D(device, &dtd, NULL, &depthTexture));
+
+	//create depth texture view
+	D3D11_DEPTH_STENCIL_VIEW_DESC dsvd = { 0 };
+	dsvd.Format = DXGI_FORMAT_D32_FLOAT;
+	dsvd.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	dsvd.Texture2D.MipSlice = 0;
+	DXFUNCTIONFAILED(device->lpVtbl->CreateDepthStencilView(device, depthTexture, &dsvd, &depthStencilView));
+}
+
+static void SetDepthStateAndCreateDepthTexture()
+{
+	HRESULT hr;
+	MSG* msg;
+
+	//setup depth buffer
+	D3D11_DEPTH_STENCIL_DESC dsDesc = { 0 };
+	dsDesc.DepthEnable = true;
+	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
+
+	DXFUNCTIONFAILED(device->lpVtbl->CreateDepthStencilState(device, &dsDesc, &depthStencilState));
+	deviceContext->lpVtbl->OMSetDepthStencilState(deviceContext, depthStencilState, 1u);
+
+	createDepthTexture();
+}
+
 static void CreateRenderTargetFromSwapChain()
 {
 	HRESULT hr;
@@ -117,11 +160,27 @@ void toggleFullScreen()
 	HRESULT hr;
 	WCHAR* msg;
 
+	if (depthTexture)
+	{
+		depthTexture->lpVtbl->Release(depthTexture);
+		depthTexture = NULL;
+	}
+
+	if (depthStencilView)
+	{
+		depthStencilView->lpVtbl->Release(depthStencilView);
+		depthStencilView = NULL;
+	}
+
 	if (renderTargetView)
 	{
 		renderTargetView->lpVtbl->Release(renderTargetView);
 		renderTargetView = NULL;
 	}
+
+
+
+
 
 	isWindowed = !isWindowed;
 
@@ -169,6 +228,7 @@ void toggleFullScreen()
 	}
 
 	CreateRenderTargetFromSwapChain();
+	createDepthTexture();
 	CalculatePerspectiveAndSetViewport();
 }
 
@@ -333,36 +393,7 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	//get updated swap chain descriptor
 	DXFUNCTIONFAILED(swapchain->lpVtbl->GetDesc(swapchain, &sd));
 
-	//setup depth buffer
-	D3D11_DEPTH_STENCIL_DESC dsDesc = { 0 };
-	dsDesc.DepthEnable = true;
-	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
-	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
-
-	DXFUNCTIONFAILED(device->lpVtbl->CreateDepthStencilState(device, &dsDesc, &depthStencilState));
-	
-	deviceContext->lpVtbl->OMSetDepthStencilState(deviceContext, depthStencilState, 1u);
-
-	//create depth texture
-	D3D11_TEXTURE2D_DESC dtd = { 0 };
-	dtd.Height = sd.BufferDesc.Height;
-	dtd.Width = sd.BufferDesc.Width;
-	dtd.MipLevels = 1;
-	dtd.ArraySize = 1;
-	dtd.Format = DXGI_FORMAT_D32_FLOAT;
-	dtd.SampleDesc.Count = 1;
-	dtd.SampleDesc.Quality = 0;
-	dtd.Usage = D3D11_USAGE_DEFAULT;
-	dtd.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-	DXFUNCTIONFAILED(device->lpVtbl->CreateTexture2D(device, &dtd, NULL, &depthTexture));
-
-	//create depth texture view
-	D3D11_DEPTH_STENCIL_VIEW_DESC dsvd = {0};
-	dsvd.Format = DXGI_FORMAT_D32_FLOAT;
-	dsvd.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-	dsvd.Texture2D.MipSlice = 0;
-	DXFUNCTIONFAILED(device->lpVtbl->CreateDepthStencilView(device, depthTexture, &dsvd, &depthStencilView));
-
+	SetDepthStateAndCreateDepthTexture();
 	CalculatePerspectiveAndSetViewport();
 	CreateRenderTargetFromSwapChain();
 
