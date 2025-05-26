@@ -1,16 +1,25 @@
 #pragma once
 #include <stdbool.h>
 #include <d3d11.h>
+#include <cglm.h>
 
 typedef struct {
-	float x;
-	float y;
-	float z;
+	vec3 pos;
+	vec2 texPos;
 }vertex;
 
-void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes);
+typedef struct {
+	mat4 transformationMatrix;
+	mat4 projectionMatrix;
+	mat4 viewMatrix;
+}MatrixBuffers;
+
+void createVertexBufferAndAppendToList(vec3* vertexArray, int sizeInBytes);
 void createIndexDataBuffer(void* indexArray, int sizeInBytes);
 
-void CreateDX3D11DeviceForWindow(HWND hwnd);
+void UpdateOnResize(int width, int height);
+void toggleFullScreen();
+
+void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height);
 void DestroyDX3D11DeviceForWindow();
 void EndFrame();

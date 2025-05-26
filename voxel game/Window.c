@@ -13,9 +13,18 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 const WCHAR* className = L"VoxelGameClass";
 HINSTANCE wndInstance;
 
+int width = 0;
+int height = 0;
+
+int getWindowheight() { return height;}
+int getWindowWidth() { return width;}
+
 HWND CreateWindowInstance(int width, int height, WCHAR* name)
 {
 	wndInstance = GetModuleHandle(NULL);
+
+	width = width;
+	height = height;
 
 	//creating and registering a window class that should have its own device context this is for direct3D stuff in the future
 	WNDCLASSEX wc = {0};
@@ -41,19 +50,19 @@ HWND CreateWindowInstance(int width, int height, WCHAR* name)
 	LogDebug(L"Registered window class with name: %s and style: 0x%x", wc.lpszClassName, wc.style);
 
 	//calculate window size based on desired client window size
-	uint16_t wndStyle = WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU;
+	uint16_t wndStyle = WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_MAXIMIZEBOX | WS_SIZEBOX;
 	RECT wr = {0};
 	wr.left = 100;
 	wr.right = width + wr.left;
 	wr.top = 100;
 	wr.bottom = height + wr.top;
-	AdjustWindowRect(&wr, WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU, FALSE);
+	AdjustWindowRect(&wr, WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_MAXIMIZEBOX | WS_SIZEBOX, FALSE);
 	//creation of window
 	HWND hwnd = CreateWindowEx(
 		0,
 		className,
 		name,
-		WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU,
+		WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_MAXIMIZEBOX | WS_SIZEBOX,
 		CW_USEDEFAULT, CW_USEDEFAULT, 
 		wr.right - wr.left, wr.bottom - wr.top,
 		NULL,
@@ -91,76 +100,115 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 		if (!InitMouseModuleAndGetOwnership(&mouseOps)){
 			LogException(RC_MOUSE_EXCEPTION, L"wnd failed to get mouse module");
 		}
-		CreateDX3D11DeviceForWindow(hWnd);
+		HRESULT hr;
+		WCHAR* msg;
+		if ((hr = CoInitialize(NULL)) != S_OK)
+		{
+			LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
+		}
+		CreateDX3D11DeviceForWindow(hWnd, width, height);
 		break;
 	//this section handles keyboard events
 	case WM_SYSKEYDOWN:
 	case WM_KEYDOWN:
-		if (!(lParam & 0x40000000) || isAutoRepeatEnabled())
+		if (keyboardops)
 		{
-			keyboardops->OnKeyPressed(wParam);
-			break;
+			if (!(lParam & 0x40000000) || isAutoRepeatEnabled())
+			{
+				keyboardops->OnKeyPressed(wParam);
+			}
 		}
+		break;
 	case WM_SYSKEYUP:
 	case WM_KEYUP:
-		keyboardops->OnKeyReleased(wParam);
+		if (keyboardops)
+		{
+			keyboardops->OnKeyReleased(wParam);
+		}
 		break;
 	case WM_CHAR:
-		keyboardops->OnChar(wParam);
+		if (keyboardops)
+		{
+			keyboardops->OnChar(wParam);
+		}
 		break;
 	//mouse handling
 	case WM_MOUSEMOVE:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnMouseMove(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnMouseMove(pt.x, pt.y);
+		}
 		break;
 	}
 	case WM_LBUTTONDOWN:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnLeftPressed(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnLeftPressed(pt.x, pt.y);
+		}
 		break;
 	}
 	case WM_RBUTTONDOWN:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnRightPressed(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnRightPressed(pt.x, pt.y);
+		}
 		break;
 	}
 	case WM_RBUTTONUP:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnRightReleased(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnRightReleased(pt.x, pt.y);
+		}
 		break;
 	}
 	case WM_LBUTTONUP:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnLeftReleased(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnLeftReleased(pt.x, pt.y);
+		}
 		break;
 	}
 	case WM_MOUSEWHEEL:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		if (GET_WHEEL_DELTA_WPARAM(wParam) > 0) {
-			mouseOps->OnWheelUp(pt.x, pt.y);
-		}
-		else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0) {
-			mouseOps->OnWheelDown(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			if (GET_WHEEL_DELTA_WPARAM(wParam) > 0) {
+				mouseOps->OnWheelUp(pt.x, pt.y);
+			}
+			else if (GET_WHEEL_DELTA_WPARAM(wParam) < 0) {
+				mouseOps->OnWheelDown(pt.x, pt.y);
+			}
 		}
 		break;
 	}
 	case WM_MBUTTONDOWN:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnMiddlePressed(pt.x, pt.y);
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnMiddlePressed(pt.x, pt.y);
+		}
 		break;
 	}
 	case WM_MBUTTONUP:
 	{
-		POINTS pt = MAKEPOINTS(lParam);
-		mouseOps->OnMiddleReleased(pt.x, pt.y);
-		break;
+		if (mouseOps)
+		{
+			POINTS pt = MAKEPOINTS(lParam);
+			mouseOps->OnMiddleReleased(pt.x, pt.y);
+			break;
+		}
 	}
 	case WM_KILLFOCUS: //this makes sure that losing focus doesn't cause undefined behaviour
 		if (keyboardops)
@@ -172,9 +220,21 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 			mouseOps->ClearState();
 		}
 		break;
+	//respond to resizing
+	case WM_SIZE:
+	{
+		uint16_t width = LOWORD(lParam);
+		uint16_t height = HIWORD(lParam);
+		UpdateOnResize((int)width, (int) height);
+		break;
+	}
 	//closing of window and destruction of resources that belong to it
 	case WM_CLOSE:
 		PostQuitMessage(1);
+		DestroyKeyboardModuleAndRevokeOwnership(&keyboardops);
+		DestroyMouseModuleAndRevokeOwnership(&mouseOps);
+		DestroyDX3D11DeviceForWindow();
+		CoUninitialize();
 		DestroyWindow(hWnd);
 		break;
 	}
