@@ -1,5 +1,6 @@
 #include "DX3D11.h"
 #include "Camera.h"
+#include "BlockTexture.h"
 #include <d3dcompiler.h>
 #include <wincodec.h>
 
@@ -158,27 +159,20 @@ void toggleFullScreen()
 	HRESULT hr;
 	WCHAR* msg;
 
-	if (depthTexture)
-	{
+	if (depthTexture){
 		depthTexture->lpVtbl->Release(depthTexture);
 		depthTexture = NULL;
 	}
 
-	if (depthStencilView)
-	{
+	if (depthStencilView){
 		depthStencilView->lpVtbl->Release(depthStencilView);
 		depthStencilView = NULL;
 	}
 
-	if (renderTargetView)
-	{
+	if (renderTargetView){
 		renderTargetView->lpVtbl->Release(renderTargetView);
 		renderTargetView = NULL;
 	}
-
-
-
-
 
 	isWindowed = !isWindowed;
 
@@ -186,10 +180,10 @@ void toggleFullScreen()
 	if (isWindowed) {
 	DXFUNCTIONFAILED(swapchain->lpVtbl->SetFullscreenState(swapchain, FALSE, NULL));
 	}
+
+	//making sure we get the highest resolution possible when in fullscreen mode
 	if (!isWindowed) {
 		DXFUNCTIONFAILED(swapchain->lpVtbl->SetFullscreenState(swapchain, TRUE, NULL));
-
-		//making sure we get the highest resolution possible
 		IDXGIOutput* output;
 		DXFUNCTIONFAILED(swapchain->lpVtbl->GetContainingOutput(swapchain, &output));
 
@@ -216,7 +210,6 @@ void toggleFullScreen()
 		DXGI_FORMAT_B8G8R8A8_UNORM,
 		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
 	));
-
 	DXFUNCTIONFAILED(swapchain->lpVtbl->GetDesc(swapchain, &sd));
 
 	if (isWindowed)
@@ -281,8 +274,13 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	//setup pipeline
 	HRESULT hr;
 
+	//load texture atlas
 	int imageWidth = 0;
 	int imageHeight = 0;
+	void* textureAtlasBitmap = NULL;
+	if (!(LoadTextureAtlas(&imageWidth, &imageHeight))){
+		return;
+	}
 
 	//create texture resource
 	D3D11_TEXTURE2D_DESC td = {0};
@@ -299,7 +297,7 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	td.MiscFlags = 0;
 
 	D3D11_SUBRESOURCE_DATA tsd = {0};
-	tsd.pSysMem = 0;
+	tsd.pSysMem = textureAtlasBitmap;
 	tsd.SysMemPitch = 4 * imageWidth;
 	DXFUNCTIONFAILED(device->lpVtbl->CreateTexture2D(device, &td, &tsd, &texture));
 
@@ -321,6 +319,9 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 
 	deviceContext->lpVtbl->PSSetSamplers(deviceContext, 0, 1, &samplerState);
 	deviceContext->lpVtbl->PSSetShaderResources(deviceContext, 0, 1, &shaderResourceView);
+
+	//free atlas bitmap
+	free(textureAtlasBitmap);
 
 	//get updated swap chain descriptor
 	DXFUNCTIONFAILED(swapchain->lpVtbl->GetDesc(swapchain, &sd));

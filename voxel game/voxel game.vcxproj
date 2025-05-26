@@ -158,6 +158,7 @@
     <ClCompile Include="keyboard.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="mouse.c" />
+    <ClCompile Include="TextureLoader.c" />
     <ClCompile Include="Window.c" />
   </ItemGroup>
   <ItemGroup>
@@ -171,6 +172,7 @@
     <ClInclude Include="keyboard.h" />
     <ClInclude Include="mouse.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="TextureLoader.h" />
     <ClInclude Include="window.h" />
   </ItemGroup>
   <ItemGroup>

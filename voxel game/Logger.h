@@ -39,5 +39,4 @@ void setupInfoManager();
 #define LogException(fmt, ...) PostQuitMessage(-1); __LogException(WFILE, __LINE__, MODULE, fmt, __VA_ARGS__);
 
 #define LOGWIN32EXCEPTION(hr) PostQuitMessage(hr); msg = formatWin32ErrorCodes(hr);  __LogException(WFILE, __LINE__, MODULE, msg); free(msg)
-
-
+#define LOGWIN32FUNCTIONEXCEPTION(hrcall) if(hr = FAILED(hrcall)){LOGWIN32EXCEPTION(hr); return;}
