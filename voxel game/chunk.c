@@ -22,12 +22,12 @@ const static vertex cubeVertexs[8] = {
 
 const static face cubeFaces[6] = {
 	//0, 1, 2, 2, 1, 3
-	{0, 1, 2, 3}, //south face
-	{7, 6, 5, 4}, //north face
-	{3, 2, 6, 7}, //top face
-	{4, 5, 1, 0}, //bottom face
-	{7, 3, 0, 4}, //west face
-	{2, 6, 5, 1}, //east face
+	{2, 3, 1, 0}, //south face
+	{7, 6, 4, 5}, //north face
+	{6, 7, 2, 3}, //top face
+	{4, 5, 0, 1}, //bottom face
+	{6, 2, 5, 1}, //west face
+	{3, 7, 0, 4}, //east face
 };
 
 const static vec3 faceChecks[6] = {
@@ -39,11 +39,13 @@ const static vec3 faceChecks[6] = {
 	{-1.0f,0.0f,0.0f},
 };
 
-const static vec2 uvs[4] = {
-	{0.0f, 0.0f}, // Top-left
-	{1.0f, 0.0f}, // Top-right
-	{1.0f, 1.0f}, // Bottom-right
-	{0.0f, 1.0f}, // Bottom-left
+const static vec2 uvs[6][4] = {
+	{{0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}}, //south face
+	{{1.0f, 0.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, { 0.0f, 1.0f}}, //north face
+	{{0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}}, //top face
+	{{1.0f, 0.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, { 0.0f, 1.0f }}, //bottom face
+	{{0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}}, //west face
+	{{1.0f, 0.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}}, //east face
 };
 
 vertex* vertexlist;
@@ -77,7 +79,7 @@ static void populateVoxelMap(){
 
 static bool checkVoxel(vec3 pos)
 {
-	int x =(int)  floorf(pos[0]);
+	int x = (int) floorf(pos[0]);
 	int y = (int) floorf(pos[1]);
 	int z = (int) floorf(pos[2]);
 
@@ -106,15 +108,16 @@ static void addVoxelDataToChunk(vec3 pos)
 				{
 					int FaceIndex = cubeFaces[f].index[v];
 					glm_vec3_add(cubeVertexs[FaceIndex].pos, pos, vertexlist[currentVertexindex].pos);
-					glm_vec2_copy(uvs[v], vertexlist[currentVertexindex].texPos);
+					glm_vec2_copy(uvs[f][v], vertexlist[currentVertexindex].texPos);
 					currentVertexindex++;
 				}
 				indexlist[currentIndexListindex++] = baseIndex;
-				indexlist[currentIndexListindex++] = baseIndex + 2;
 				indexlist[currentIndexListindex++] = baseIndex + 3;
-				indexlist[currentIndexListindex++] = baseIndex + 1;
 				indexlist[currentIndexListindex++] = baseIndex + 2;
 				indexlist[currentIndexListindex++] = baseIndex;
+				indexlist[currentIndexListindex++] = baseIndex + 1;
+				indexlist[currentIndexListindex++] = baseIndex + 3;
+
 			}
 		}
 }
@@ -132,15 +135,18 @@ void createBlock()
 		{
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
-				for (size_t f = 0; f < 6; f++)
+				vec3 pos = { x,y,z };
+				if (checkVoxel(pos))
 				{
-					vec3 pos = {x,y,z};
-					vec3 blockToCheck;
-					glm_vec3_add(pos, faceChecks[f], blockToCheck);
-					if (!checkVoxel(blockToCheck))
-					{
-						indexSize += 6;
-						vertexSize += 4;
+					for (size_t f = 0; f < 6; f++)
+					{	
+						vec3 blockToCheck;
+						glm_vec3_add(pos, faceChecks[f], blockToCheck);
+						if (!checkVoxel(blockToCheck))
+						{
+							indexSize += 6;
+							vertexSize += 4;
+						}
 					}
 				}
 			}
