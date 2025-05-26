@@ -44,7 +44,7 @@ HWND CreateWindowInstance(int width, int height, WCHAR* name)
 	
 	
 	if (!RegisterClassExW(&wc)) {
-		LogException(RC_WND_EXCEPTION, L"Window class registration error occured while the application was running.");
+		LogException(L"Window class registration error occured while the application was running.");
 		return NULL;
 	}
 	LogDebug(L"Registered window class with name: %s and style: 0x%x", wc.lpszClassName, wc.style);
@@ -73,7 +73,7 @@ HWND CreateWindowInstance(int width, int height, WCHAR* name)
 
 	if (hwnd == NULL)
 	{
-		LogException(RC_WND_EXCEPTION, L"Window creation error occurred while the application was running.");
+		LogException(L"Window creation error occurred while the application was running.");
 		return NULL;
 	}
 	LogDebug(L"window created with handle: 0x%x", hwnd);
@@ -95,16 +95,16 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 		//window creation and resource creation 
 	case WM_CREATE:
 		if (!InitKeyboardModuleAndGetOwnership(&keyboardops)){
-			LogException(RC_WND_EXCEPTION, L"wnd failed to get keyboard module");
+			LogException(L"wnd failed to get keyboard module");
 		}
 		if (!InitMouseModuleAndGetOwnership(&mouseOps)){
-			LogException(RC_MOUSE_EXCEPTION, L"wnd failed to get mouse module");
+			LogException(L"wnd failed to get mouse module");
 		}
 		HRESULT hr;
 		WCHAR* msg;
 		if ((hr = CoInitialize(NULL)) != S_OK)
 		{
-			LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
+			LOGWIN32EXCEPTION(hr);
 		}
 		CreateDX3D11DeviceForWindow(hWnd, width, height);
 		break;

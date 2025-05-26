@@ -1,5 +1,4 @@
 #include "App.h"
-#include "ReturnCodes.h"
 
 #define MODULE L"Main"
 #include "Logger.h"
@@ -13,20 +12,18 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 		return -1;
 	}
 
-	LogInfo(L"Logger initialized successfully.");
 	LogInfo(L"Application starting with command-line arguments: %S", lpCmdLine);
 
 	//inits program then runs until program exits or has exception
-	LogInfo(L"Application starting...");
 	int returnStatus = ApplicationStartAndRun(800, 600, L"voxel game engine");
 	
 	// Handle program exit
-	if (returnStatus != RC_NORMAL) {
+	if (returnStatus != 1) {
 		MessageBoxW(NULL, L"The program has exited with an exception. Please refer to the logs.", L"Error", MB_OK | MB_ICONERROR);
-		LogWarning(L"Application exited with exception code: %u (%s)", returnStatus, convertRCtoString(returnStatus));
+		LogWarning(L"Application exited with exception code:%u", returnStatus);
 	}
 	else {
-		LogInfo(L"Application exited normally with code: %u (%s)", returnStatus, convertRCtoString(returnStatus));
+		LogInfo(L"Application exited normally with code: %u", returnStatus);
 	}
 
 	 StopLogger();

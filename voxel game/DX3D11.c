@@ -69,9 +69,7 @@ DXGI_SWAP_CHAIN_DESC sd = {
 #define LOGDXMESSAGES()
 #endif
 
-#define DXFUNCTIONFAILED(hrcall) if(FAILED(hr = (hrcall))){ LOGDXMESSAGES(); LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr); return;}
-
-
+#define DXFUNCTIONFAILED(hrcall) if(FAILED(hr = (hrcall))){ LOGDXMESSAGES(); LOGWIN32EXCEPTION(hr); return;}
 static void CalculatePerspective(int width, int height)
 {
 	//calculate the perspective projection matrix
@@ -273,7 +271,7 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	if (FAILED(result))
 	{
 		LOGDXMESSAGES();
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, result);
+		LOGWIN32EXCEPTION(result);
 		return;
 	}
 
@@ -283,68 +281,8 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	//setup pipeline
 	HRESULT hr;
 
-	//load texture
-	IWICImagingFactory* imagingFactory = NULL;
-	if ((hr = CoCreateInstance(&CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER, &IID_IWICImagingFactory, &imagingFactory)) != S_OK)
-	{
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
-		return;
-	}
-
-	IWICBitmapDecoder* bitmapDecoder = NULL;
-	if ((hr = imagingFactory->lpVtbl->CreateDecoderFromFilename(imagingFactory, L"ReferenceTexture.png", NULL, GENERIC_READ, 0, &bitmapDecoder)) != S_OK)
-	{
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
-		return;
-	}
-
-	IWICBitmapFrameDecode* bitmapFrameDecode;
-	if ((hr = bitmapDecoder->lpVtbl->GetFrame(bitmapDecoder, 0, &bitmapFrameDecode)) != S_OK)
-	{
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
-		return;
-	}
-
-	IWICFormatConverter* formatConverter = NULL;
-	hr = imagingFactory->lpVtbl->CreateFormatConverter(imagingFactory, &formatConverter);
-	if (FAILED(hr)) {
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
-		return;
-	}
-
-	hr = formatConverter->lpVtbl->Initialize(
-		formatConverter,
-		(IWICBitmapSource*)bitmapFrameDecode,
-		&GUID_WICPixelFormat32bppRGBA, // Convert to 32-bit RGBA
-		WICBitmapDitherTypeNone,
-		NULL,
-		0.0,
-		WICBitmapPaletteTypeCustom
-	);
-	if (FAILED(hr)) {
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
-		return;
-	}
-
 	int imageWidth = 0;
 	int imageHeight = 0;
-	// Update the size and copy pixels from the format converter
-	hr = formatConverter->lpVtbl->GetSize(formatConverter, &imageWidth, &imageHeight);
-	if (FAILED(hr)) {
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
-		return;
-	}
-
-	int sizeInBytes = (imageWidth * imageHeight) * 4;
-	void* temp = malloc(sizeInBytes);
-	hr = formatConverter->lpVtbl->CopyPixels(formatConverter, NULL, 4 * imageWidth, sizeInBytes, temp);
-	if (FAILED(hr)) {
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
-		return;
-	}
-
-	// Release the format converter after use
-	formatConverter->lpVtbl->Release(formatConverter);
 
 	//create texture resource
 	D3D11_TEXTURE2D_DESC td = {0};
@@ -361,15 +299,9 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	td.MiscFlags = 0;
 
 	D3D11_SUBRESOURCE_DATA tsd = {0};
-	tsd.pSysMem = temp;
+	tsd.pSysMem = 0;
 	tsd.SysMemPitch = 4 * imageWidth;
 	DXFUNCTIONFAILED(device->lpVtbl->CreateTexture2D(device, &td, &tsd, &texture));
-
-	//free used resources for texture loading
-	free(temp);
-	bitmapFrameDecode->lpVtbl->Release(bitmapFrameDecode);
-	bitmapDecoder->lpVtbl->Release(bitmapDecoder);
-	imagingFactory->lpVtbl->Release(imagingFactory);
 
 	//create a shader resource for the texture
 	D3D11_SHADER_RESOURCE_VIEW_DESC rvd = {0};
@@ -654,12 +586,12 @@ void EndFrame()
 		if (hr == DXGI_ERROR_DEVICE_REMOVED)
 		{
 			LOGDXMESSAGES();
-			LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, device->lpVtbl->GetDeviceRemovedReason(device));
+			LOGWIN32EXCEPTION(device->lpVtbl->GetDeviceRemovedReason(device));
 		}
 		else
 		{
 			LOGDXMESSAGES();
-			LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
+			LOGWIN32EXCEPTION(hr);
 		}
 	}
 }

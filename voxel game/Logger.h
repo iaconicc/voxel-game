@@ -2,8 +2,6 @@
 #include <Windows.h>
 #include <stdarg.h>
 #include <stdint.h>
-#include "ReturnCodes.h"
-
 
 //all files that include this must #define MODULE L"modulename" before including this header
 
@@ -17,7 +15,7 @@ errno_t StartLogger();
 void StopLogger();
 
 //please do no use these functions directly use the macros provided below
-void __LogException(WCHAR* file, int line, int type, WCHAR* module, WCHAR* fmt, ...);
+void __LogException(WCHAR* file, int line, WCHAR* module, WCHAR* fmt, ...);
 void __Log(int Level, WCHAR* module, WCHAR* fmt, ...);
 WCHAR* formatWin32ErrorCodes(int hr);
 void logDXMessages();
@@ -38,8 +36,8 @@ void setupInfoManager();
 #endif
 
 #define LogWarning(fmt, ...) __Log(LOG_WARNING, MODULE, fmt, __VA_ARGS__);
-#define LogException(type, fmt, ...) PostQuitMessage(type); __LogException(WFILE, __LINE__, type, MODULE, fmt, __VA_ARGS__);
+#define LogException(fmt, ...) PostQuitMessage(-1); __LogException(WFILE, __LINE__, MODULE, fmt, __VA_ARGS__);
 
-#define LOGWIN32EXCEPTION(type,hr) PostQuitMessage(type); msg = formatWin32ErrorCodes(hr);  __LogException(WFILE, __LINE__, type, MODULE, msg); free(msg)
+#define LOGWIN32EXCEPTION(hr) PostQuitMessage(hr); msg = formatWin32ErrorCodes(hr);  __LogException(WFILE, __LINE__, MODULE, msg); free(msg)
 
 

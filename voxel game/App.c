@@ -46,7 +46,7 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 	g_hwnd = CreateWindowInstance(width, height, name);
 	if (!g_hwnd){
 		LogWarning(L"The application failed to create window");
-		return RC_WND_EXCEPTION;
+		return -1;
 	}
 	LogInfo(L"created window with dimesions %u x %u", width, height);
 

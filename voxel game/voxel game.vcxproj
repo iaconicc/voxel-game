@@ -149,6 +149,7 @@
   <ItemGroup>
     <ClCompile Include="App.c" />
     <ClCompile Include="bitfield.c" />
+    <ClCompile Include="BlockTexture.c" />
     <ClCompile Include="Camera.c" />
     <ClCompile Include="chunk.c" />
     <ClCompile Include="DX3D11.c" />
@@ -157,11 +158,11 @@
     <ClCompile Include="keyboard.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="mouse.c" />
-    <ClCompile Include="ReturnCodes.c" />
     <ClCompile Include="Window.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bitfield.h" />
+    <ClInclude Include="BlockTexture.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="chunk.h" />
     <ClInclude Include="DX3D11.h" />
@@ -170,7 +171,6 @@
     <ClInclude Include="keyboard.h" />
     <ClInclude Include="mouse.h" />
     <ClInclude Include="resource.h" />
-    <ClInclude Include="ReturnCodes.h" />
     <ClInclude Include="window.h" />
   </ItemGroup>
   <ItemGroup>
