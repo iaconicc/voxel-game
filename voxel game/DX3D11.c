@@ -278,7 +278,7 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	int imageWidth = 0;
 	int imageHeight = 0;
 	void* textureAtlasBitmap = NULL;
-	if (!(LoadTextureAtlas(&imageWidth, &imageHeight))){
+	if (!(textureAtlasBitmap = LoadTextureAtlas(&imageWidth, &imageHeight))){
 		return;
 	}
 
