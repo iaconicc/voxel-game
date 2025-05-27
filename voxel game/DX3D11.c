@@ -27,7 +27,7 @@ ID3D11Texture2D* depthTexture;
 ID3D11DepthStencilView* depthStencilView;
 
 //vertex and index buffers
-ID3D11Buffer* vertexBuffers[32];
+ID3D11Buffer* vertexBuffers;
 ID3D11Buffer* IndexBuffer = NULL;
 
 //constant buffers (matrixes)
@@ -374,15 +374,6 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	deviceContext->lpVtbl->VSSetShader(deviceContext, vertexShader, NULL, 0);
 	deviceContext->lpVtbl->PSSetShader(deviceContext, pixelShader, NULL, 0);
 
-	//D3D11_RASTERIZER_DESC rast = { 0 };
-	//rast.CullMode = D3D11_CULL_NONE;
-	//rast.DepthClipEnable = true;
-	//rast.FillMode = D3D11_FILL_SOLID;
-	
-	//ID3D11RasterizerState* rastState;
-	//device->lpVtbl->CreateRasterizerState(device, &rast, &rastState);
-	//deviceContext->lpVtbl->RSSetState(deviceContext, rastState);
-
 	LogInfo(L"pipeline set");
 }
 
@@ -402,7 +393,7 @@ void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
 
 	D3D11_SUBRESOURCE_DATA sd = { 0 };
 	sd.pSysMem = vertexArray;
-	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &vertexBuffers[0]));
+	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &vertexBuffers));
 
 	//bind vertex buffer
 	deviceContext->lpVtbl->IASetVertexBuffers(deviceContext, 0, 1, &vertexBuffers, &VertexSizeInBytes, &offset);
@@ -420,16 +411,16 @@ void createIndexDataBuffer(void* indexArray, int sizeInBytes)
 	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	bd.MiscFlags = 0;
-	bd.StructureByteStride = sizeof(int);
+	bd.StructureByteStride = sizeof(uint16_t);
 
 	D3D11_SUBRESOURCE_DATA sd = { 0 };
 	sd.pSysMem = indexArray;
 	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &IndexBuffer));
 
 	//bind index buffer
-	deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, IndexBuffer, DXGI_FORMAT_R16_UINT, 0);
 
-	numberOfIndexes = sizeInBytes / sizeof(int);
+	numberOfIndexes = sizeInBytes / sizeof(uint16_t);
 }
 
 
@@ -459,13 +450,11 @@ void DestroyDX3D11DeviceForWindow()
 		renderTargetView = NULL;
 	}
 
-	for (size_t i = 0; i < 32; i++)
+
+	if (vertexBuffers)
 	{
-		if (vertexBuffers[i])
-		{
-			vertexBuffers[i]->lpVtbl->Release(vertexBuffers[i]);
-			vertexBuffers[i] = NULL;
-		}
+		vertexBuffers->lpVtbl->Release(vertexBuffers);
+		vertexBuffers = NULL;
 	}
 
 	if (IndexBuffer)

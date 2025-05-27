@@ -7,7 +7,7 @@
 #include "Logger.h"
 
 typedef struct {
-	unsigned int index[6];
+	uint16_t index[6];
 }face;
 
 const static vertex cubeVertexs[8] = {
@@ -50,15 +50,20 @@ const static vec2 uvs[6][4] = {
 };
 
 vertex* vertexlist;
-int* indexlist;
+uint16_t* indexlist;
 
 #define CHUNK_SIZE  16
-#define CHUNK_SIZEV 32
+#define CHUNK_SIZEV 256
 
 typedef struct{
 	uint16_t blockID;
 	uint8_t blockstate;
 }Block;
+
+typedef struct{
+	vec3* vertexList;
+	uint16_t* indexlist;
+}chunkMesh;
 
 typedef struct {
 	Block blocks[CHUNK_SIZE][CHUNK_SIZEV][CHUNK_SIZE];
@@ -91,8 +96,6 @@ static bool checkVoxel(vec3 pos)
 	{
 		return false;
 	}
-
-
 
 	int index = (z * CHUNK_SIZE * CHUNK_SIZEV) + (y * CHUNK_SIZE) + x;
 	uint8_t solid = ReadBit(&chunk.blockIsAir, index);
@@ -164,10 +167,10 @@ void createBlock()
 
 	
 	//allocate memory enough for both indices and vertexes
-	indexlist = calloc(indexSize,sizeof(int));
+	indexlist = calloc(indexSize,sizeof(uint16_t));
 	vertexlist = calloc(vertexSize,sizeof(vertex));
 
-	LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexSize, ((sizeof(vertex) * vertexSize)/1000), indexSize, ((sizeof(int) * indexSize)/1000));
+	LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexSize, ((sizeof(vertex) * vertexSize)/1000), indexSize, ((sizeof(uint16_t) * indexSize)/1000));
 
 	//add vertexs and indices
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
@@ -186,7 +189,7 @@ void createBlock()
 	}
 
 	createVertexBufferAndAppendToList(vertexlist, sizeof(vertex) * vertexSize);
-	createIndexDataBuffer(indexlist, sizeof(int) * indexSize);
+	createIndexDataBuffer(indexlist, sizeof(uint16_t) * indexSize);
 }
 
 void destroyBlock()
