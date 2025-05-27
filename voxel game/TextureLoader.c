@@ -48,6 +48,4 @@ void* LoadTextureFromFile(WCHAR* file, int* width, int* height)
 	bitmapFrameDecode->lpVtbl->Release(bitmapFrameDecode);
 	bitmapDecoder->lpVtbl->Release(bitmapDecoder);
 	imagingFactory->lpVtbl->Release(imagingFactory);
-
-	return temp;
 }

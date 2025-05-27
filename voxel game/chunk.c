@@ -108,43 +108,7 @@ static void addVoxelDataToChunk(vec3 pos)
 				{
 					int FaceIndex = cubeFaces[f].index[v];
 					glm_vec3_add(cubeVertexs[FaceIndex].pos, pos, vertexlist[currentVertexindex].pos);
-
-					vec2 newTex = { 0 };
-					newTex[0] = uvs[f][v][0] * 0.25;
-					newTex[1] = uvs[f][v][1] * 0.25;
-					if (f == 0)
-					{
-						newTex[0] += 0.0f; // Move to the second column
-						newTex[1] += 0.0f;
-					}
-
-					if (f == 1)
-					{
-						newTex[0] += 0.25f; // Move to the second column
-						newTex[1] += 0.00f;
-					}
-
-					if(f == 2){
-						newTex[0] += 0.50f; // Move to the second column
-						newTex[1] += 0.00f;
-					}
-
-					if (f == 3) {
-						newTex[0] += 0.75f; // Move to the second column
-						newTex[1] += 0.00f;
-					}
-
-					if (f == 4) {
-						newTex[0] += 0.00f; // Move to the second column
-						newTex[1] += 0.25f;
-					}
-
-					if (f == 5) {
-						newTex[0] += 0.25f; // Move to the second column
-						newTex[1] += 0.25f;
-					}
-
-					glm_vec2_copy(newTex, vertexlist[currentVertexindex].texPos);
+					glm_vec2_copy(uvs[f][v], vertexlist[currentVertexindex].texPos);
 					currentVertexindex++;
 				}
 				indexlist[currentIndexListindex++] = baseIndex;
