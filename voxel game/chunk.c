@@ -1,5 +1,6 @@
 #include "chunk.h"
 #include "DX3D11.h"
+#include "bitfield.h"
 #include <cglm.h>
 
 #define MODULE L"chunk"
@@ -55,11 +56,13 @@ int* indexlist;
 #define CHUNK_SIZEV 32
 
 typedef struct{
-	bool isSolid;
+	uint16_t blockID;
+	uint8_t blockstate;
 }Block;
 
 typedef struct {
 	Block blocks[CHUNK_SIZE][CHUNK_SIZEV][CHUNK_SIZE];
+	BitField blockIsAir;
 }Chunk;
 
 Chunk chunk;
@@ -71,7 +74,8 @@ static void populateVoxelMap(){
 		{
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
-				chunk.blocks[x][y][z].isSolid = true;
+				int index = (z * CHUNK_SIZE * CHUNK_SIZEV) + (y * CHUNK_SIZE) + x;
+				SetBit(&chunk.blockIsAir, index); // Set voxel as solid
 			}
 		}
 	}
@@ -88,7 +92,11 @@ static bool checkVoxel(vec3 pos)
 		return false;
 	}
 
-	return chunk.blocks[x][y][z].isSolid;
+
+
+	int index = (z * CHUNK_SIZE * CHUNK_SIZEV) + (y * CHUNK_SIZE) + x;
+	uint8_t solid = ReadBit(&chunk.blockIsAir, index);
+	return solid;
 }
 
 int currentVertexindex = 0;
@@ -124,6 +132,7 @@ static void addVoxelDataToChunk(vec3 pos)
 
 void createBlock()
 {
+	InitBitField(&chunk.blockIsAir, CHUNK_SIZE * CHUNK_SIZEV * CHUNK_SIZE);
 	populateVoxelMap();
 	int indexSize = 0;
 	int vertexSize = 0;
@@ -182,6 +191,7 @@ void createBlock()
 
 void destroyBlock()
 {
+	DestroyBitField(&chunk.blockIsAir);
 	free(vertexlist);
 	free(indexlist);
 }
