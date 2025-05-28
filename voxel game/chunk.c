@@ -83,7 +83,7 @@ static void populateVoxelMap(){
 		{
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
-				chunk.blocksState[x][y][z].blockstate = SetBLOCKSOLID(chunk.blocksState[x][y][z].blockstate);
+				chunk.blocksState[x][y][z].blockstate = UnsetBLOCKSOLID(chunk.blocksState[x][y][z].blockstate);
 			}
 		}
 	}
@@ -131,9 +131,9 @@ static void addVoxelDataToChunk(vec3 pos)
 					glm_vec2_mul(ScaledUV, uvs[f][v], ScaledUV);
 
 					//get block type then texture id to get Uv offsets for a texture in the atlas
-					BlockType block = GetBlockTypeByID(1);
+					BlockType block = GetBlockTypeByID(2);
 					vec2 UvOffsets = {0};
-					GetUvOffsetByTexId(block.textureId, &UvOffsets[0], &UvOffsets[1]);
+					GetUvOffsetByTexId(block.faces[f].textureId, &UvOffsets[0], &UvOffsets[1]);
 
 					//add the offset to scaled uv
 					glm_vec2_add(ScaledUV, UvOffsets, ScaledUV);
@@ -183,7 +183,6 @@ void createBlock()
 			}
 		}
 	}
-
 	
 	//allocate memory enough for both indices and vertexes
 	indexlist = calloc(indexSize,sizeof(int));
