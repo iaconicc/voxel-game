@@ -411,16 +411,16 @@ void createIndexDataBuffer(void* indexArray, int sizeInBytes)
 	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	bd.MiscFlags = 0;
-	bd.StructureByteStride = sizeof(uint16_t);
+	bd.StructureByteStride = sizeof(int);
 
 	D3D11_SUBRESOURCE_DATA sd = { 0 };
 	sd.pSysMem = indexArray;
 	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &IndexBuffer));
 
 	//bind index buffer
-	deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, IndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+	deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
-	numberOfIndexes = sizeInBytes / sizeof(uint16_t);
+	numberOfIndexes = sizeInBytes / sizeof(int);
 }
 
 
