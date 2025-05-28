@@ -1,6 +1,7 @@
 #include "chunk.h"
 #include "DX3D11.h"
-#include "bitfield.h"
+#include "Blocks.h"
+#include "BlockTexture.h"
 #include <cglm.h>
 
 #define MODULE L"chunk"
@@ -55,9 +56,13 @@ int* indexlist;
 #define CHUNK_SIZE  16
 #define CHUNK_SIZEV 32
 
+#define ISBLOCKSOLID(blockstate) (blockstate & 1)
+#define SetBLOCKSOLID(blockstate) ((blockstate & 1) | 1)
+#define UnsetBLOCKSOLID(blockstate) ((blockstate & 1) & ~1)
+
 typedef struct{
 	uint16_t blockID;
-	uint8_t blockstate;
+	uint16_t blockstate;
 }Block;
 
 typedef struct{
@@ -66,8 +71,7 @@ typedef struct{
 }chunkMesh;
 
 typedef struct {
-	Block blocks[CHUNK_SIZE][CHUNK_SIZEV][CHUNK_SIZE];
-	BitField blockIsAir;
+	Block blocksState[CHUNK_SIZE][CHUNK_SIZEV][CHUNK_SIZE];
 }Chunk;
 
 Chunk chunk;
@@ -79,8 +83,7 @@ static void populateVoxelMap(){
 		{
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
-				int index = (z * CHUNK_SIZE * CHUNK_SIZEV) + (y * CHUNK_SIZE) + x;
-				SetBit(&chunk.blockIsAir, index); // Set voxel as solid
+				chunk.blocksState[x][y][z].blockstate = SetBLOCKSOLID(chunk.blocksState[x][y][z].blockstate);
 			}
 		}
 	}
@@ -97,9 +100,7 @@ static bool checkVoxel(vec3 pos)
 		return false;
 	}
 
-	int index = (z * CHUNK_SIZE * CHUNK_SIZEV) + (y * CHUNK_SIZE) + x;
-	uint8_t solid = ReadBit(&chunk.blockIsAir, index);
-	return solid;
+	return ISBLOCKSOLID(chunk.blocksState[x][y][z].blockstate);
 }
 
 int currentVertexindex = 0;
@@ -115,27 +116,45 @@ static void addVoxelDataToChunk(vec3 pos)
 			if (!checkVoxel(blockTocheck)) {
 				
 				int baseIndex = currentVertexindex;
+
+				//loop through each vertex and add a uv and vertex
 				for (size_t v = 0; v < 4; v++)
 				{
+					//add vertex
 					int FaceIndex = cubeFaces[f].index[v];
 					glm_vec3_add(cubeVertexs[FaceIndex].pos, pos, vertexlist[currentVertexindex].pos);
-					glm_vec2_copy(uvs[f][v], vertexlist[currentVertexindex].texPos);
+
+					//scale the uv to the texture of first block
+					vec2 ScaledUV = { 0 };
+					ScaledUV[0] = GetUvOfOneBlockX();
+					ScaledUV[1] = GetUvOfOneBlockY();
+					glm_vec2_mul(ScaledUV, uvs[f][v], ScaledUV);
+
+					//get block type then texture id to get Uv offsets for a texture in the atlas
+					BlockType block = GetBlockTypeByID(1);
+					vec2 UvOffsets = {0};
+					GetUvOffsetByTexId(block.textureId, &UvOffsets[0], &UvOffsets[1]);
+
+					//add the offset to scaled uv
+					glm_vec2_add(ScaledUV, UvOffsets, ScaledUV);
+
+					glm_vec2_copy(ScaledUV, vertexlist[currentVertexindex].texPos);
 					currentVertexindex++;
 				}
+
+				//add indexes so that it connects the added vertexs in clockwise order
 				indexlist[currentIndexListindex++] = baseIndex;
 				indexlist[currentIndexListindex++] = baseIndex + 3;
 				indexlist[currentIndexListindex++] = baseIndex + 2;
 				indexlist[currentIndexListindex++] = baseIndex;
 				indexlist[currentIndexListindex++] = baseIndex + 1;
 				indexlist[currentIndexListindex++] = baseIndex + 3;
-
 			}
 		}
 }
 
 void createBlock()
 {
-	InitBitField(&chunk.blockIsAir, CHUNK_SIZE * CHUNK_SIZEV * CHUNK_SIZE);
 	populateVoxelMap();
 	int indexSize = 0;
 	int vertexSize = 0;
@@ -194,7 +213,6 @@ void createBlock()
 
 void destroyBlock()
 {
-	DestroyBitField(&chunk.blockIsAir);
 	free(vertexlist);
 	free(indexlist);
 }

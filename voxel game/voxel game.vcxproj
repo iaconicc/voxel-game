@@ -149,6 +149,7 @@
   <ItemGroup>
     <ClCompile Include="App.c" />
     <ClCompile Include="bitfield.c" />
+    <ClCompile Include="Blocks.c" />
     <ClCompile Include="BlockTexture.c" />
     <ClCompile Include="Camera.c" />
     <ClCompile Include="chunk.c" />
@@ -163,6 +164,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bitfield.h" />
+    <ClInclude Include="Blocks.h" />
     <ClInclude Include="BlockTexture.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="chunk.h" />
