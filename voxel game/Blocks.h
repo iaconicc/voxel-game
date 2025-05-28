@@ -11,13 +11,18 @@ typedef enum{
 }BLOCKFACE;
 
 typedef struct {
-	int textureId;
+	uint16_t textureId;
+	uint16_t textureRotation;
 }Face;
+
+typedef struct{
+	Face faces[6];
+}Model;
 
 typedef struct{
 	wchar_t* name;
 	uint16_t BlockId;
-	Face faces[6];
+	Model directionalModels[6];
 }BlockType;
 
 BlockType GetBlockTypeByID(uint16_t id);

@@ -50,6 +50,33 @@ const static vec2 uvs[6][4] = {
 	{{1.0f, 0.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}}, //east face
 };
 
+const static vec2 uvs90[6][4] = {
+	{{0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}}, // south face
+	{{0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}}, // north face
+	{{0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}}, // top face
+	{{0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}}, // bottom face
+	{{0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}}, // west face
+	{{0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}}  // east face
+};
+
+const static vec2 uvs180[6][4] = {
+	{{1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f}}, // south face
+	{{1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f}}, // north face
+	{{1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f}}, // top face
+	{{1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f}}, // bottom face
+	{{1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f}}, // west face
+	{{1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f}}  // east face
+};
+
+const static vec2 uvs270[6][4] = {
+	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}, // south face
+	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}, // north face
+	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}, // top face
+	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}, // bottom face
+	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}, // west face
+	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}  // east face
+};
+
 vertex* vertexlist;
 int* indexlist;
 
@@ -84,6 +111,10 @@ static void populateVoxelMap(){
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
 				chunk.blocksState[x][y][z].blockstate = UnsetBLOCKSOLID(chunk.blocksState[x][y][z].blockstate);
+				if (x == 0 && y == 0 && z == 0)
+				{
+					chunk.blocksState[x][y][z].blockstate = SetBLOCKSOLID(chunk.blocksState[x][y][z].blockstate);
+				}
 			}
 		}
 	}
@@ -107,16 +138,14 @@ int currentVertexindex = 0;
 int currentIndexListindex = 0;
 
 static void addVoxelDataToChunk(vec3 pos)
-{
+{	
 		for (size_t f = 0; f < 6; f++)
 		{
 			vec3 blockTocheck;
 			glm_vec3_add(pos, faceChecks[f], blockTocheck);
-
 			if (!checkVoxel(blockTocheck)) {
-				
+				BlockType block = GetBlockTypeByID(3);
 				int baseIndex = currentVertexindex;
-
 				//loop through each vertex and add a uv and vertex
 				for (size_t v = 0; v < 4; v++)
 				{
@@ -124,16 +153,41 @@ static void addVoxelDataToChunk(vec3 pos)
 					int FaceIndex = cubeFaces[f].index[v];
 					glm_vec3_add(cubeVertexs[FaceIndex].pos, pos, vertexlist[currentVertexindex].pos);
 
+					//rotate the uv if needed
+					vec2 rotatedUv;
+					switch (block.directionalModels[0].faces[f].textureRotation)
+					{
+						case 90:
+						{
+							glm_vec2_copy(uvs90[f][v], rotatedUv);
+							break;
+						}
+						case 180:
+						{
+							glm_vec2_copy(uvs180[f][v], rotatedUv);
+							break;
+						}
+						case 270:
+						{
+							glm_vec2_copy(uvs270[f][v], rotatedUv);
+							break;
+						}
+						default:
+						{
+							glm_vec2_copy(uvs[f][v], rotatedUv);
+							break;
+						}
+					}
+
 					//scale the uv to the texture of first block
 					vec2 ScaledUV = { 0 };
 					ScaledUV[0] = GetUvOfOneBlockX();
 					ScaledUV[1] = GetUvOfOneBlockY();
-					glm_vec2_mul(ScaledUV, uvs[f][v], ScaledUV);
+					glm_vec2_mul(rotatedUv, ScaledUV, ScaledUV);
 
-					//get block type then texture id to get Uv offsets for a texture in the atlas
-					BlockType block = GetBlockTypeByID(2);
+					//get Uv offsets for a texture in the atlas
 					vec2 UvOffsets = {0};
-					GetUvOffsetByTexId(block.faces[f].textureId, &UvOffsets[0], &UvOffsets[1]);
+					GetUvOffsetByTexId(block.directionalModels[0].faces[f].textureId, &UvOffsets[0], &UvOffsets[1]);
 
 					//add the offset to scaled uv
 					glm_vec2_add(ScaledUV, UvOffsets, ScaledUV);

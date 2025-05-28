@@ -5,4 +5,4 @@ void* LoadTextureAtlas(int* width, int* height);
 
 float GetUvOfOneBlockX();
 float GetUvOfOneBlockY();
-void GetUvOffsetByTexId(int texId, float* x, float* y);
+void GetUvOffsetByTexId(uint16_t texId, float* x, float* y);

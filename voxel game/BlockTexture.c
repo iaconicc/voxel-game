@@ -47,7 +47,7 @@ float GetUvOfOneBlockY()
 	return AtlasOneBlockInUvY;
 }
 
-void GetUvOffsetByTexId(int texId, float* x, float* y)
+void GetUvOffsetByTexId(uint16_t texId, float* x, float* y)
 {
 	int AtlasX = texId % AtlasWidthInBlocks;
 	int AtlasY = texId / AtlasWidthInBlocks;
