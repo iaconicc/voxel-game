@@ -6,11 +6,15 @@
 #include <direct.h>
 #include <fcntl.h>
 #include <io.h>
-#include <dxgidebug.h>
 
 FILE* gamelog;
 IDXGIInfoQueue* infoManager;
+IDXGIDebug* debug;
 int currentDXmessage = 0;
+
+IDXGIDebug* getDxgiDebug(){
+	return debug;
+}
 
 void setupInfoManager()  
 {  
@@ -36,6 +40,11 @@ void setupInfoManager()
     if (FAILED(hr))  {  
         LogWarning(L"Failed to get IDXGIInfoQueue interface: %s", formatWin32ErrorCodes(hr));  
     }  
+
+	hr = DXGIgetdebuginterface(&IID_IDXGIDebug, (void**)&debug);
+	if (FAILED(hr)) {
+		LogWarning(L"Failed to get IDXGIInfoQueue interface: %s", formatWin32ErrorCodes(hr));
+	}
 
 	FreeLibrary(lib); // Unload the library
 	LogDebug(L"initialised DX info manager");
@@ -88,6 +97,11 @@ static void stopInfoManager()
 	if (infoManager)
 	{
 		infoManager->lpVtbl->Release(infoManager);
+	}
+	if (debug)
+	{
+		debug->lpVtbl->ReportLiveObjects(debug, DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_DETAIL);
+		debug->lpVtbl->Release(debug);
 	}
 }
 

@@ -43,10 +43,13 @@ ID3D11SamplerState* samplerState = NULL;
 
 ID3D11InputLayout* inputLayout = NULL;
 
+IDXGIFactory* dxgiFactory = NULL;
+
 UINT offset = 0;
 UINT VertexSizeInBytes = sizeof(vertex);
 
-static bool isWindowed = true;
+bool isWindowed = true;
+bool render = true;
 
 DXGI_SWAP_CHAIN_DESC sd = {
 	.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
@@ -145,6 +148,7 @@ static void CreateRenderTargetFromSwapChain()
 {
 	HRESULT hr;
 	WCHAR* msg;
+
 	//getting swap chain buffer
 	ID3D11Resource* backBuffer = NULL;
 	DXFUNCTIONFAILED(swapchain->lpVtbl->GetBuffer(swapchain, 0, &IID_ID3D11Resource, &backBuffer));
@@ -154,33 +158,106 @@ static void CreateRenderTargetFromSwapChain()
 	backBuffer->lpVtbl->Release(backBuffer);
 }
 
-void toggleFullScreen()
+
+void resizeSwapchain(int width, int height)
 {
 	HRESULT hr;
 	WCHAR* msg;
 
-	if (depthTexture){
-		depthTexture->lpVtbl->Release(depthTexture);
-		depthTexture = NULL;
-	}
+	if (swapchain)
+	{
+		DXGI_MODE_DESC md = { 0 };
+		if (!isWindowed)
+		{
+			IDXGIOutput* output;
+			DXFUNCTIONFAILED(swapchain->lpVtbl->GetContainingOutput(swapchain, &output));
 
-	if (depthStencilView){
-		depthStencilView->lpVtbl->Release(depthStencilView);
-		depthStencilView = NULL;
-	}
+			//checking how many modes are available
+			UINT modesAvailable;
+			DXFUNCTIONFAILED(output->lpVtbl->GetDisplayModeList(output, DXGI_FORMAT_B8G8R8A8_UNORM, 0, &modesAvailable, NULL));
+			DXGI_MODE_DESC* modeList = malloc(sizeof(DXGI_MODE_DESC) * modesAvailable);
+			DXFUNCTIONFAILED(output->lpVtbl->GetDisplayModeList(output, DXGI_FORMAT_B8G8R8A8_UNORM, 0, &modesAvailable, modeList));
+			md = modeList[modesAvailable - 1];
+			free(modeList);
+			output->lpVtbl->Release(output);
+		}else{
+			md.Width = width;
+			md.Height = height;
+		}
 
-	if (renderTargetView){
-		renderTargetView->lpVtbl->Release(renderTargetView);
-		renderTargetView = NULL;
-	}
+		if (depthTexture) {
+			depthTexture->lpVtbl->Release(depthTexture);
+			depthTexture = NULL;
+		}
 
+		if (depthStencilView) {
+			depthStencilView->lpVtbl->Release(depthStencilView);
+			depthStencilView = NULL;
+		}
+
+		if (renderTargetView) {
+			renderTargetView->lpVtbl->Release(renderTargetView);
+			renderTargetView = NULL;
+		}
+
+		LogDebug(L"(%u , %u)", md.Width, md.Height);
+		DXFUNCTIONFAILED(swapchain->lpVtbl->ResizeBuffers(
+			swapchain,
+			0, // Use the same number of buffers
+			md.Width,
+			md.Height, 
+			DXGI_FORMAT_B8G8R8A8_UNORM,
+			DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
+		));
+
+		DXFUNCTIONFAILED(swapchain->lpVtbl->GetDesc(swapchain, &sd));
+
+		CreateRenderTargetFromSwapChain();
+		CalculatePerspectiveAndSetViewport();
+		createDepthTexture();
+	}
+}
+
+bool wasTabbing = false;
+bool switching = false;
+void setInactive(){
+	if (!isWindowed){
+		toggleFullScreen();
+		wasTabbing = true;
+	}
+	render = false;
+}
+
+void setactive() {
+	if (!switching)
+	{
+		if (wasTabbing) {
+			wasTabbing = false;
+			toggleFullScreen();
+		}
+	}
+	render = true;
+}
+
+void toggleFullScreen()
+{
+	HRESULT hr;
+	WCHAR* msg;
+	
+	switching = true;
 	isWindowed = !isWindowed;
 
-	DXGI_MODE_DESC md = { 0 };
 	if (isWindowed) {
-	DXFUNCTIONFAILED(swapchain->lpVtbl->SetFullscreenState(swapchain, FALSE, NULL));
+		if (swapchain)
+		{
+			DXFUNCTIONFAILED(swapchain->lpVtbl->SetFullscreenState(swapchain, FALSE, NULL));
+		}
+		else{
+			return;
+		}
 	}
 
+	DXGI_MODE_DESC md = { 0 };
 	//making sure we get the highest resolution possible when in fullscreen mode
 	if (!isWindowed) {
 		DXFUNCTIONFAILED(swapchain->lpVtbl->SetFullscreenState(swapchain, TRUE, NULL));
@@ -201,16 +278,7 @@ void toggleFullScreen()
 		md.Height = windowedheight;
 	}
 
-	// Resize the swap chain buffers
-	DXFUNCTIONFAILED(swapchain->lpVtbl->ResizeBuffers(
-		swapchain,
-		0, // Use the same number of buffers
-		md.Width, // Automatically match the window width
-		md.Height, // Automatically match the window height
-		DXGI_FORMAT_B8G8R8A8_UNORM,
-		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
-	));
-	DXFUNCTIONFAILED(swapchain->lpVtbl->GetDesc(swapchain, &sd));
+	resizeSwapchain(md.Width, md.Height);
 
 	if (isWindowed)
 	{
@@ -218,9 +286,6 @@ void toggleFullScreen()
 		SetWindowPos(hwnd, HWND_TOP, 0, 0, sd.BufferDesc.Width, sd.BufferDesc.Height, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE);
 	}
 
-	CreateRenderTargetFromSwapChain();
-	createDepthTexture();
-	CalculatePerspectiveAndSetViewport();
 }
 
 void UpdateOnResize(int width, int height)
@@ -238,7 +303,9 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 
 	hwnd = hwnd;
 	sd.OutputWindow = hwnd;
-	sd.Windowed = true;
+	sd.Windowed = isWindowed;
+
+	
 
 	int DeviceFlags = 0;
 
@@ -256,10 +323,12 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 
 #ifdef _DEBUG
 	setupInfoManager();
+	getDxgiDebug()->lpVtbl->ReportLiveObjects(getDxgiDebug(), DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_DETAIL);
 #endif
 
 	//for debugging macro
 	WCHAR* msg;
+	HRESULT hr;
 
 	if (FAILED(result))
 	{
@@ -268,11 +337,22 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 		return;
 	}
 
+	IDXGIDevice* dxgiDevice = NULL;
+	DXFUNCTIONFAILED(device->lpVtbl->QueryInterface(device,&IID_IDXGIDevice, (void**)&dxgiDevice));
+
+	IDXGIAdapter* dxgiAdapter = NULL;
+	DXFUNCTIONFAILED(dxgiDevice->lpVtbl->GetParent(dxgiDevice,&IID_IDXGIAdapter, (void**)&dxgiAdapter));
+	
+	DXFUNCTIONFAILED(dxgiAdapter->lpVtbl->GetParent(dxgiAdapter,&IID_IDXGIFactory, (void**)&dxgiFactory));
+
+	dxgiDevice->lpVtbl->Release(dxgiDevice);
+	dxgiAdapter->lpVtbl->Release(dxgiAdapter);
+
 	LogInfo(L"DX3D device created succesfully");
 
 	LogInfo(L"setting up base pipeline...");
 	//setup pipeline
-	HRESULT hr;
+
 
 	//load texture atlas
 	int imageWidth = 0;
@@ -326,9 +406,9 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	//get updated swap chain descriptor
 	DXFUNCTIONFAILED(swapchain->lpVtbl->GetDesc(swapchain, &sd));
 
+	CreateRenderTargetFromSwapChain();
 	SetDepthStateAndCreateDepthTexture();
 	CalculatePerspectiveAndSetViewport();
-	CreateRenderTargetFromSwapChain();
 
 	//set primitive topology
 	deviceContext->lpVtbl->IASetPrimitiveTopology(deviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -517,6 +597,11 @@ void DestroyDX3D11DeviceForWindow()
 		depthTexture->lpVtbl->Release(depthTexture);
 		depthTexture = NULL;
 	}
+	if (dxgiFactory)
+	{
+		dxgiFactory->lpVtbl->Release(dxgiFactory);
+		dxgiFactory = NULL;
+	}
 }
 
 float angle = 0;
@@ -571,17 +656,22 @@ void EndFrame()
 
 	HRESULT hr;
 	WCHAR* msg;
-	if (FAILED(hr = swapchain->lpVtbl->Present(swapchain, 1u, 0u)))
+
+	if (render)
 	{
-		if (hr == DXGI_ERROR_DEVICE_REMOVED)
+		if (FAILED(hr = swapchain->lpVtbl->Present(swapchain, 1u, 0u)))
 		{
-			LOGDXMESSAGES();
-			LOGWIN32EXCEPTION(device->lpVtbl->GetDeviceRemovedReason(device));
-		}
-		else
-		{
-			LOGDXMESSAGES();
-			LOGWIN32EXCEPTION(hr);
+			if (hr == DXGI_ERROR_DEVICE_REMOVED)
+			{
+				LOGDXMESSAGES();
+				LOGWIN32EXCEPTION(device->lpVtbl->GetDeviceRemovedReason(device));
+			}
+			else
+			{
+				LOGDXMESSAGES();
+				LOGWIN32EXCEPTION(hr);
+			}
 		}
 	}
+	switching = false;
 }

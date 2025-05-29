@@ -225,7 +225,18 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 	{
 		uint16_t width = LOWORD(lParam);
 		uint16_t height = HIWORD(lParam);
-		UpdateOnResize((int)width, (int) height);
+		UpdateOnResize(width, height);
+		break;
+	}
+	case WM_ACTIVATE:
+	{
+		if (wParam == WA_INACTIVE)
+		{
+			setInactive();
+		}else
+		{
+			setactive();
+		}
 		break;
 	}
 	//closing of window and destruction of resources that belong to it
@@ -237,6 +248,11 @@ LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM l
 		CoUninitialize();
 		DestroyWindow(hWnd);
 		break;
+	case WM_DESTROY:
+		DestroyKeyboardModuleAndRevokeOwnership(&keyboardops);
+		DestroyMouseModuleAndRevokeOwnership(&mouseOps);
+		DestroyDX3D11DeviceForWindow();
+		CoUninitialize();
 	}
 
 	return DefWindowProc(hWnd, Msg, wParam, lParam);

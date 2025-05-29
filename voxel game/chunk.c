@@ -110,11 +110,7 @@ static void populateVoxelMap(){
 		{
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
-				chunk.blocksState[x][y][z].blockstate = UnsetBLOCKSOLID(chunk.blocksState[x][y][z].blockstate);
-				if (x == 0 && y == 0 && z == 0)
-				{
-					chunk.blocksState[x][y][z].blockstate = SetBLOCKSOLID(chunk.blocksState[x][y][z].blockstate);
-				}
+				chunk.blocksState[x][y][z].blockstate = SetBLOCKSOLID(chunk.blocksState[x][y][z].blockstate);
 			}
 		}
 	}
@@ -207,11 +203,13 @@ static void addVoxelDataToChunk(vec3 pos)
 		}
 }
 
+int indexSize = 0;
+int vertexSize = 0;
+
 void createBlock()
 {
 	populateVoxelMap();
-	int indexSize = 0;
-	int vertexSize = 0;
+
 
 	//check each face and calculate how large the vertex and index list should be
 	for (size_t x = 0; x < CHUNK_SIZE; x++)

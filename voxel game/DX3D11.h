@@ -21,5 +21,7 @@ void UpdateOnResize(int width, int height);
 void toggleFullScreen();
 
 void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height);
+void setInactive();
+void setactive();
 void DestroyDX3D11DeviceForWindow();
 void EndFrame();

@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <dxgidebug.h>
 
 //all files that include this must #define MODULE L"modulename" before including this header
 
@@ -12,6 +13,7 @@ typedef enum {
 } LOGGINGLEVELS;
 
 errno_t StartLogger();
+IDXGIDebug* getDxgiDebug();
 void StopLogger();
 
 //please do no use these functions directly use the macros provided below
