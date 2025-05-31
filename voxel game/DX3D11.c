@@ -323,7 +323,6 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 
 #ifdef _DEBUG
 	setupInfoManager();
-	getDxgiDebug()->lpVtbl->ReportLiveObjects(getDxgiDebug(), DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_DETAIL);
 #endif
 
 	//for debugging macro
@@ -455,6 +454,10 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	deviceContext->lpVtbl->PSSetShader(deviceContext, pixelShader, NULL, 0);
 
 	LogInfo(L"pipeline set");
+
+#ifdef _DEBUG
+	getDxgiDebug()->lpVtbl->ReportLiveObjects(getDxgiDebug(), DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_DETAIL);
+#endif
 }
 
 
