@@ -147,6 +147,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\..\Downloads\hashmap.c-0.8.0\hashmap.c-0.8.0\hashmap.c" />
     <ClCompile Include="App.c" />
     <ClCompile Include="bitfield.c" />
     <ClCompile Include="Blocks.c" />
@@ -164,6 +165,7 @@
     <ClCompile Include="world.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\..\Downloads\hashmap.c-0.8.0\hashmap.c-0.8.0\hashmap.h" />
     <ClInclude Include="bitfield.h" />
     <ClInclude Include="Blocks.h" />
     <ClInclude Include="BlockTexture.h" />
