@@ -147,7 +147,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\Downloads\hashmap.c-0.8.0\hashmap.c-0.8.0\hashmap.c" />
     <ClCompile Include="App.c" />
     <ClCompile Include="bitfield.c" />
     <ClCompile Include="Blocks.c" />
@@ -155,6 +154,7 @@
     <ClCompile Include="Camera.c" />
     <ClCompile Include="chunk.c" />
     <ClCompile Include="DX3D11.c" />
+    <ClCompile Include="hashmap.c" />
     <ClCompile Include="Logger.c" />
     <ClCompile Include="FIFO.c" />
     <ClCompile Include="keyboard.c" />
@@ -165,13 +165,13 @@
     <ClCompile Include="world.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\Downloads\hashmap.c-0.8.0\hashmap.c-0.8.0\hashmap.h" />
     <ClInclude Include="bitfield.h" />
     <ClInclude Include="Blocks.h" />
     <ClInclude Include="BlockTexture.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="chunk.h" />
     <ClInclude Include="DX3D11.h" />
+    <ClInclude Include="hashmap.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="FIFO.h" />
     <ClInclude Include="keyboard.h" />

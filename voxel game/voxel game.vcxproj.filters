@@ -60,7 +60,7 @@
     <ClCompile Include="world.c">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\Downloads\hashmap.c-0.8.0\hashmap.c-0.8.0\hashmap.c">
+    <ClCompile Include="hashmap.c">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -107,7 +107,7 @@
     <ClInclude Include="world.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\Downloads\hashmap.c-0.8.0\hashmap.c-0.8.0\hashmap.h">
+    <ClInclude Include="hashmap.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

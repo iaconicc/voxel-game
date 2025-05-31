@@ -2,6 +2,9 @@
 #include "chunk.h"
 #include "App.h"
 #include <processthreadsapi.h>
+#include "hashmap.h"
+
+struct hashmap chunkHashmap;
 
 static WINAPI WorldThread() {
 
