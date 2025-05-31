@@ -161,6 +161,7 @@
     <ClCompile Include="mouse.c" />
     <ClCompile Include="TextureLoader.c" />
     <ClCompile Include="Window.c" />
+    <ClCompile Include="world.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bitfield.h" />
@@ -176,6 +177,7 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="TextureLoader.h" />
     <ClInclude Include="window.h" />
+    <ClInclude Include="world.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.h" />

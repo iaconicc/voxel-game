@@ -1,8 +1,7 @@
 #include "chunk.h"
-#include "DX3D11.h"
+
 #include "Blocks.h"
 #include "BlockTexture.h"
-#include <cglm.h>
 
 #define MODULE L"chunk"
 #include "Logger.h"
@@ -77,46 +76,26 @@ const static vec2 uvs270[6][4] = {
 	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}  // east face
 };
 
-vertex* vertexlist;
-int* indexlist;
-
-#define CHUNK_SIZE  16
-#define CHUNK_SIZEV 32
-
 #define ISBLOCKSOLID(blockstate) (blockstate & 1)
 #define SetBLOCKSOLID(blockstate) ((blockstate & 1) | 1)
 #define UnsetBLOCKSOLID(blockstate) ((blockstate & 1) & ~1)
 
-typedef struct{
-	uint16_t blockID;
-	uint16_t blockstate;
-}Block;
+Chunk testChunk;
 
-typedef struct{
-	vec3* vertexList;
-	int* indexlist;
-}chunkMesh;
-
-typedef struct {
-	Block blocksState[CHUNK_SIZE][CHUNK_SIZEV][CHUNK_SIZE];
-}Chunk;
-
-Chunk chunk;
-
-static void populateVoxelMap(){
+static void populateVoxelMap(Chunk* chunk){
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
 	{
 		for (size_t y = 0; y < CHUNK_SIZEV; y++)
 		{
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
-				chunk.blocksState[x][y][z].blockstate = SetBLOCKSOLID(chunk.blocksState[x][y][z].blockstate);
+				chunk->blocksState[x][y][z].blockstate = SetBLOCKSOLID(chunk->blocksState[x][y][z].blockstate);
 			}
 		}
 	}
 }
 
-static bool checkVoxel(vec3 pos)
+static bool checkVoxel(Chunk* chunk,vec3 pos)
 {
 	int x = (int) floorf(pos[0]);
 	int y = (int) floorf(pos[1]);
@@ -127,27 +106,24 @@ static bool checkVoxel(vec3 pos)
 		return false;
 	}
 
-	return ISBLOCKSOLID(chunk.blocksState[x][y][z].blockstate);
+	return ISBLOCKSOLID(chunk->blocksState[x][y][z].blockstate);
 }
 
-int currentVertexindex = 0;
-int currentIndexListindex = 0;
-
-static void addVoxelDataToChunk(vec3 pos)
+static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex, int* currentIndexListIndex)
 {	
 		for (size_t f = 0; f < 6; f++)
 		{
 			vec3 blockTocheck;
 			glm_vec3_add(pos, faceChecks[f], blockTocheck);
-			if (!checkVoxel(blockTocheck)) {
+			if (!checkVoxel(&testChunk, blockTocheck)) {
 				BlockType block = GetBlockTypeByID(3);
-				int baseIndex = currentVertexindex;
+				int baseIndex = (*currentVertexindex);
 				//loop through each vertex and add a uv and vertex
 				for (size_t v = 0; v < 4; v++)
 				{
 					//add vertex
 					int FaceIndex = cubeFaces[f].index[v];
-					glm_vec3_add(cubeVertexs[FaceIndex].pos, pos, vertexlist[currentVertexindex].pos);
+					glm_vec3_add(cubeVertexs[FaceIndex].pos, pos, chunk->mesh.vertexList[(*currentVertexindex)].pos);
 
 					//rotate the uv if needed
 					vec2 rotatedUv;
@@ -188,28 +164,27 @@ static void addVoxelDataToChunk(vec3 pos)
 					//add the offset to scaled uv
 					glm_vec2_add(ScaledUV, UvOffsets, ScaledUV);
 
-					glm_vec2_copy(ScaledUV, vertexlist[currentVertexindex].texPos);
-					currentVertexindex++;
+					glm_vec2_copy(ScaledUV, chunk->mesh.vertexList[(*currentVertexindex)].texPos);
+					(*currentVertexindex)++;
 				}
 
 				//add indexes so that it connects the added vertexs in clockwise order
-				indexlist[currentIndexListindex++] = baseIndex;
-				indexlist[currentIndexListindex++] = baseIndex + 3;
-				indexlist[currentIndexListindex++] = baseIndex + 2;
-				indexlist[currentIndexListindex++] = baseIndex;
-				indexlist[currentIndexListindex++] = baseIndex + 1;
-				indexlist[currentIndexListindex++] = baseIndex + 3;
+				chunk->mesh.indexlist[(*currentIndexListIndex)++] = baseIndex;
+				chunk->mesh.indexlist[(*currentIndexListIndex)++] = baseIndex + 3;
+				chunk->mesh.indexlist[(*currentIndexListIndex)++] = baseIndex + 2;
+				chunk->mesh.indexlist[(*currentIndexListIndex)++] = baseIndex;
+				chunk->mesh.indexlist[(*currentIndexListIndex)++] = baseIndex + 1;
+				chunk->mesh.indexlist[(*currentIndexListIndex)++] = baseIndex + 3;
 			}
 		}
 }
 
-int indexSize = 0;
-int vertexSize = 0;
-
 void createBlock()
 {
-	populateVoxelMap();
+	int indexSize = 0;
+	int vertexSize = 0;
 
+	populateVoxelMap(&testChunk);
 
 	//check each face and calculate how large the vertex and index list should be
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
@@ -219,13 +194,13 @@ void createBlock()
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
 				vec3 pos = { x,y,z };
-				if (checkVoxel(pos))
+				if (checkVoxel(&testChunk, pos))
 				{
 					for (size_t f = 0; f < 6; f++)
 					{	
 						vec3 blockToCheck;
 						glm_vec3_add(pos, faceChecks[f], blockToCheck);
-						if (!checkVoxel(blockToCheck))
+						if (!checkVoxel(&testChunk, blockToCheck))
 						{
 							indexSize += 6;
 							vertexSize += 4;
@@ -237,11 +212,13 @@ void createBlock()
 	}
 	
 	//allocate memory enough for both indices and vertexes
-	indexlist = calloc(indexSize,sizeof(int));
-	vertexlist = calloc(vertexSize,sizeof(vertex));
+	testChunk.mesh.indexlist = calloc(indexSize,sizeof(int));
+	testChunk.mesh.vertexList = calloc(vertexSize,sizeof(vertex));
 
 	LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexSize, ((sizeof(vertex) * vertexSize)/1000), indexSize, ((sizeof(int) * indexSize)/1000));
 
+	int currentVertexindex = 0;
+	int currentIndexListindex = 0;
 	//add vertexs and indices
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
 	{
@@ -250,20 +227,20 @@ void createBlock()
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
 				vec3 pos = { x, y, z};
-				if (checkVoxel(pos))
+				if (checkVoxel(&testChunk,pos))
 				{
-					addVoxelDataToChunk(pos);
+					addVoxelDataToChunk(&testChunk, pos, &currentVertexindex, &currentIndexListindex);
 				}
 			}
 		}
 	}
 
-	createVertexBufferAndAppendToList(vertexlist, sizeof(vertex) * vertexSize);
-	createIndexDataBuffer(indexlist, sizeof(int) * indexSize);
+	createVertexBufferAndAppendToList(testChunk.mesh.vertexList, sizeof(vertex) * vertexSize);
+	createIndexDataBuffer(testChunk.mesh.indexlist, sizeof(int) * indexSize);
 }
 
 void destroyBlock()
 {
-	free(vertexlist);
-	free(indexlist);
+	free(testChunk.mesh.indexlist);
+	free(testChunk.mesh.vertexList);
 }
