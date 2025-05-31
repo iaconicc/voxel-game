@@ -20,5 +20,5 @@ typedef struct {
 	chunkMesh mesh;
 }Chunk;
 
-void createBlock();
-void destroyBlock();
+void generateChunkMesh(Chunk* chunk);
+void destroyBlock(Chunk* chunk);

@@ -4,11 +4,14 @@
 #include "DX3D11.h"
 #include "chunk.h"
 #include "Camera.h"
+#include "world.h"
 
 #define MODULE L"APP"
 #include "Logger.h"
 
 HWND g_hwnd;
+
+bool running = false;
 
 static void DoFrameLogic()
 {
@@ -50,8 +53,10 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 	}
 	LogInfo(L"created window with dimesions %u x %u", width, height);
 
+	running = true;
+
 	initialiseCamera();
-	createBlock();
+	StartWorld();
 
 	//start application loop
 	LogInfo(L"Starting App loop...");
@@ -60,8 +65,9 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 		int ecode;
 		if (ecode = ProcessMessages())
 		{
-			destroyBlock();
+
 			g_hwnd = NULL;
+			running = false;
 			CleanupWindow();
 			return ecode;
 		}
@@ -73,4 +79,8 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 
 	}
 
+}
+
+bool ProgramIsRunning(){
+	return running;
 }

@@ -179,7 +179,7 @@ static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex,
 		}
 }
 
-void createBlock()
+void generateChunkMesh(Chunk* chunk)
 {
 	int indexSize = 0;
 	int vertexSize = 0;
@@ -239,7 +239,7 @@ void createBlock()
 	createIndexDataBuffer(testChunk.mesh.indexlist, sizeof(int) * indexSize);
 }
 
-void destroyBlock()
+void destroyBlock(Chunk* chunk)
 {
 	free(testChunk.mesh.indexlist);
 	free(testChunk.mesh.vertexList);
