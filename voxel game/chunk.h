@@ -13,12 +13,20 @@ typedef struct {
 typedef struct {
 	vertex* vertexList;
 	int* indexlist;
+	int vertexListSize;
+	int IndexListSize;
 }chunkMesh;
+
+typedef struct {
+	int x;
+	int z;
+}chunkPos;
 
 typedef struct {
 	Block blocksState[CHUNK_SIZE][CHUNK_SIZEV][CHUNK_SIZE];
 	chunkMesh mesh;
+	chunkPos pos;
+	bool chunkIsReady;
 }Chunk;
 
-void generateChunkMesh(Chunk* chunk);
-void destroyBlock(Chunk* chunk);
+void WINAPI generateChunkMesh(void* lparam);

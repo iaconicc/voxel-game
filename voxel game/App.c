@@ -65,13 +65,13 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 		int ecode;
 		if (ecode = ProcessMessages())
 		{
-
 			g_hwnd = NULL;
 			running = false;
 			CleanupWindow();
 			return ecode;
 		}
 		DoFrameLogic();
+		DrawChunks();
 		EndFrame();
 #ifdef _DEBUG
 		logDXMessages();

@@ -14,12 +14,12 @@ typedef struct {
 	mat4 viewMatrix;
 }MatrixBuffers;
 
-void createVertexBufferAndAppendToList(vec3* vertexArray, int sizeInBytes);
-void createIndexDataBuffer(void* indexArray, int sizeInBytes);
-
 void UpdateOnResize(int width, int height);
 void toggleFullScreen();
 
+void DrawMesh(vertex* vertexList, int* indexList, int vertexListByteSize, int indexListByteSize, vec3 pos);
+
+bool DxsettingUp();
 void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height);
 void setInactive();
 void setactive();

@@ -1,7 +1,11 @@
 #include "chunk.h"
 
+#include "world.h"
 #include "Blocks.h"
 #include "BlockTexture.h"
+#include "App.h"
+#include "hashmap.h"
+#include <synchapi.h>
 
 #define MODULE L"chunk"
 #include "Logger.h"
@@ -80,8 +84,6 @@ const static vec2 uvs270[6][4] = {
 #define SetBLOCKSOLID(blockstate) ((blockstate & 1) | 1)
 #define UnsetBLOCKSOLID(blockstate) ((blockstate & 1) & ~1)
 
-Chunk testChunk;
-
 static void populateVoxelMap(Chunk* chunk){
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
 	{
@@ -101,8 +103,12 @@ static bool checkVoxel(Chunk* chunk,vec3 pos)
 	int y = (int) floorf(pos[1]);
 	int z = (int) floorf(pos[2]);
 
-	if (x < 0 || x > CHUNK_SIZE - 1 || y < 0 || y > CHUNK_SIZEV - 1 || z < 0 || z > CHUNK_SIZE - 1)
+	if (x < 0 || x > CHUNK_SIZE - 1 || y < 0 || z < 0 || z > CHUNK_SIZE - 1)
 	{
+		return true;
+	}
+
+	if (y > CHUNK_SIZEV - 1){
 		return false;
 	}
 
@@ -115,7 +121,7 @@ static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex,
 		{
 			vec3 blockTocheck;
 			glm_vec3_add(pos, faceChecks[f], blockTocheck);
-			if (!checkVoxel(&testChunk, blockTocheck)) {
+			if (!checkVoxel(chunk, blockTocheck)) {
 				BlockType block = GetBlockTypeByID(3);
 				int baseIndex = (*currentVertexindex);
 				//loop through each vertex and add a uv and vertex
@@ -179,12 +185,26 @@ static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex,
 		}
 }
 
-void generateChunkMesh(Chunk* chunk)
+void WINAPI generateChunkMesh(void* lparam)
 {
-	int indexSize = 0;
-	int vertexSize = 0;
+	chunkGenData* chunkGen = (chunkGenData*) lparam;
 
-	populateVoxelMap(&testChunk);
+	CRITICAL_SECTION* mutex = chunkGen->criticalSection;
+	struct hashmap* chunkHashmap = chunkGen->hash;
+	
+	Chunk* chunk = malloc(sizeof(Chunk));
+	if (!chunk){
+		return -1;
+	}
+
+	chunk->chunkIsReady = false;
+	chunk->mesh.IndexListSize = 0;
+	chunk->mesh.vertexListSize = 0;
+
+	chunk->pos.x = chunkGen->x;
+	chunk->pos.z = chunkGen->z;
+
+	populateVoxelMap(chunk);
 
 	//check each face and calculate how large the vertex and index list should be
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
@@ -194,16 +214,16 @@ void generateChunkMesh(Chunk* chunk)
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
 				vec3 pos = { x,y,z };
-				if (checkVoxel(&testChunk, pos))
+				if (checkVoxel(chunk, pos))
 				{
 					for (size_t f = 0; f < 6; f++)
 					{	
 						vec3 blockToCheck;
 						glm_vec3_add(pos, faceChecks[f], blockToCheck);
-						if (!checkVoxel(&testChunk, blockToCheck))
+						if (!checkVoxel(chunk, blockToCheck))
 						{
-							indexSize += 6;
-							vertexSize += 4;
+							chunk->mesh.IndexListSize += 6;
+							chunk->mesh.vertexListSize += 4;
 						}
 					}
 				}
@@ -212,10 +232,10 @@ void generateChunkMesh(Chunk* chunk)
 	}
 	
 	//allocate memory enough for both indices and vertexes
-	testChunk.mesh.indexlist = calloc(indexSize,sizeof(int));
-	testChunk.mesh.vertexList = calloc(vertexSize,sizeof(vertex));
+	chunk->mesh.indexlist = calloc(chunk->mesh.IndexListSize,sizeof(int));
+	chunk->mesh.vertexList = calloc(chunk->mesh.vertexListSize,sizeof(vertex));
 
-	LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexSize, ((sizeof(vertex) * vertexSize)/1000), indexSize, ((sizeof(int) * indexSize)/1000));
+	LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", chunk->mesh.vertexListSize, ((sizeof(vertex) * chunk->mesh.vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000));
 
 	int currentVertexindex = 0;
 	int currentIndexListindex = 0;
@@ -227,20 +247,18 @@ void generateChunkMesh(Chunk* chunk)
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
 				vec3 pos = { x, y, z};
-				if (checkVoxel(&testChunk,pos))
+				if (checkVoxel(chunk,pos))
 				{
-					addVoxelDataToChunk(&testChunk, pos, &currentVertexindex, &currentIndexListindex);
+					addVoxelDataToChunk(chunk, pos, &currentVertexindex, &currentIndexListindex);
 				}
 			}
 		}
 	}
 
-	createVertexBufferAndAppendToList(testChunk.mesh.vertexList, sizeof(vertex) * vertexSize);
-	createIndexDataBuffer(testChunk.mesh.indexlist, sizeof(int) * indexSize);
-}
-
-void destroyBlock(Chunk* chunk)
-{
-	free(testChunk.mesh.indexlist);
-	free(testChunk.mesh.vertexList);
+	chunk->chunkIsReady = true;
+	EnterCriticalSection(mutex);
+	hashmap_set(chunkHashmap, chunk);
+	LeaveCriticalSection(mutex);
+	free(lparam);
+	return 0;
 }
