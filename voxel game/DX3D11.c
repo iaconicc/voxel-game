@@ -2,8 +2,8 @@
 #include "Camera.h"
 #include "BlockTexture.h"
 #include <d3dcompiler.h>
-#include <wincodec.h>
 #include <d3d11_4.h>
+#include <sys/timeb.h>
 #include "world.h"
 
 #define MODULE L"DX3D11"
@@ -297,7 +297,7 @@ void UpdateOnResize(int width, int height)
 	CalculatePerspective(width, height);
 }
 
-
+struct _timeb lastEpoch, newEpoch;
 void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 {
 	windowedheight = height;
@@ -468,6 +468,7 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	getDxgiDebug()->lpVtbl->ReportLiveObjects(getDxgiDebug(), DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_DETAIL);
 #endif
 
+	_ftime64_s(&lastEpoch);
 	settingUp = false;
 }
 
@@ -660,19 +661,20 @@ void DrawMesh(ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, int indexBu
 		deviceContext->lpVtbl->DrawIndexed(deviceContext, indexBufferElements, 0, 0);
 }
 
+float deltaTime = 0;
+float frameRate = 0;
+float colour[4] = { 0.0f, 0.7f, 1.0f, 1.0f };
 void EndFrame()
 {
 	HRESULT hr;
 	WCHAR* msg;
 
 	updateViewMatrix();
-	float colour[4] = {0.0f, 0.7f, 1.0f, 1.0f};
 
 	if (render)
 	{
-		deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 4u, &renderTargetView, depthStencilView);
-		
-		if (FAILED(hr = swapchain->lpVtbl->Present(swapchain, 1u, 0u)))
+		deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, depthStencilView);
+		if (FAILED(hr = swapchain->lpVtbl->Present(swapchain, 1u, 0)))
 		{
 			if (hr == DXGI_ERROR_DEVICE_REMOVED)
 			{
@@ -685,8 +687,22 @@ void EndFrame()
 				LOGWIN32EXCEPTION(hr);
 			}
 		}
+		deviceContext->lpVtbl->ClearDepthStencilView(deviceContext, depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+		deviceContext->lpVtbl->ClearRenderTargetView(deviceContext, renderTargetView, colour);
 	}
-	deviceContext->lpVtbl->ClearDepthStencilView(deviceContext, depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	deviceContext->lpVtbl->ClearRenderTargetView(deviceContext, renderTargetView, colour);
+
 	switching = false;
+	
+	_ftime64_s(&newEpoch);
+	deltaTime = ((float)(newEpoch.time - lastEpoch.time)) + (((float)(newEpoch.millitm - lastEpoch.millitm)) / 1000);
+	lastEpoch = newEpoch;
+	frameRate = deltaTime > 0 ? (1.0f / deltaTime) : 0.0f;
+}
+
+float getFrameDelta(){
+	return deltaTime;
+}
+
+float getFrameRate(){
+	return frameRate;
 }

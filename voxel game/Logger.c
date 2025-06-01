@@ -94,14 +94,14 @@ errno_t StartLogger()
 
 static void stopInfoManager()
 {
-	if (infoManager)
-	{
-		infoManager->lpVtbl->Release(infoManager);
-	}
 	if (debug)
 	{
 		debug->lpVtbl->ReportLiveObjects(debug, DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_DETAIL);
 		debug->lpVtbl->Release(debug);
+	}
+	if (infoManager)
+	{
+		infoManager->lpVtbl->Release(infoManager);
 	}
 }
 

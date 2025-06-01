@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <d3d11.h>
 #include <cglm.h>
+#include <stdint.h>
 
 typedef struct {
 	vec3 pos;
@@ -29,3 +30,4 @@ void setInactive();
 void setactive();
 void DestroyDX3D11DeviceForWindow();
 void EndFrame();
+float getFrameDelta();

@@ -13,6 +13,6 @@ typedef struct {
 	int z;
 }chunkGenData;
 
-void StartWorld();
+HANDLE StartWorld();
 void DrawChunks();
 CRITICAL_SECTION* getChunkmapMutex();

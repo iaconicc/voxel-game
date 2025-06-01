@@ -29,9 +29,9 @@ static WINAPI WorldThread() {
 			vec3 currentPlayerPos;
 			getCameraTargetAndPosition(&currentPlayerPos, NULL);
 			if (currentPlayerPos[0] != lastPlayerPos[0] || currentPlayerPos[1] != lastPlayerPos[1] || currentPlayerPos[2] != lastPlayerPos[2]){
-				for (int x = 0; x < 16; x++)
+				for (int x = 0; x < 32; x++)
 				{
-					for (int z = 0; z < 16; z++)
+					for (int z = 0; z < 32; z++)
 					{
 						chunk.pos.x = x;
 						chunk.pos.z = z;
@@ -84,7 +84,7 @@ CRITICAL_SECTION* getChunkmapMutex()
 	return &chunkmapMutex;
 }
 
-void StartWorld()
+HANDLE StartWorld()
 {
 	InitializeCriticalSection(&chunkmapMutex);
 
@@ -98,6 +98,8 @@ void StartWorld()
 	HANDLE handle;
 	//chunk generation thread
 	handle = CreateThread(0,0, WorldThread, 0, 0, &id);
+
+	return handle;
 }
 
 void DrawChunks()
@@ -105,10 +107,7 @@ void DrawChunks()
 	if (chunkHashmap) {
 		Chunk* chunk = NULL;
 		size_t i = 0;
-
-		struct _timeb start, stop;
 		
-		_ftime64_s(&start);
 		EnterCriticalSection(&chunkmapMutex);
 		while (hashmap_iter(chunkHashmap, &i, &chunk)) {
 			if (chunk->chunkIsReady) {
@@ -117,10 +116,6 @@ void DrawChunks()
 			}
 		};
 		LeaveCriticalSection(&chunkmapMutex);
-		_ftime64_s(&stop);
-		
-		LogDebug(L"time elapsed: %f",(float)((((stop.time * 1000) + stop.millitm))-(((start.time * 1000)+start.millitm))));
-		
 	}
 }
 

@@ -10,34 +10,37 @@
 #include "Logger.h"
 
 HWND g_hwnd;
+HANDLE worldThread;
 
 bool running = false;
 
 static void DoFrameLogic()
 {
+	float delta = getFrameDelta();
+
 	if(keyIsPressed('W'))
-		MoveCameraForward(0.1);
+		MoveCameraForward(4.317 * delta);
 
 	if (keyIsPressed('S'))
-		MoveCameraBack(0.1);
+		MoveCameraBack(4.317 * delta);
 
 	if (keyIsPressed('A'))
-		StrafeCameraLeft(0.1);
+		StrafeCameraLeft(4.317 * delta);
 
 	if (keyIsPressed('D'))
-		StrafeCameraRight(0.1);
+		StrafeCameraRight(4.317 * delta);
 
 	if (keyIsPressed(VK_UP))
-		RotateCam(0, 0.5);
+		RotateCam(0, 25.0 * delta);
 
 	if (keyIsPressed(VK_DOWN))
-		RotateCam(0.0, -0.5);
+		RotateCam(0.0, -25.0 * delta);
 
 	if (keyIsPressed(VK_LEFT))
-		RotateCam(0.5, 0.0);
+		RotateCam(25.0 * delta, 0.0);
 
 	if (keyIsPressed(VK_RIGHT))
-		RotateCam(-0.5, 0.0);
+		RotateCam(-25.0 * delta, 0.0);
 
 	if (keyIsPressed(VK_F11))
 		toggleFullScreen();
@@ -56,7 +59,7 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 	running = true;
 
 	initialiseCamera();
-	StartWorld();
+	worldThread = StartWorld();
 
 	//start application loop
 	LogInfo(L"Starting App loop...");
@@ -68,6 +71,7 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 			g_hwnd = NULL;
 			running = false;
 			CleanupWindow();
+			WaitForSingleObject(worldThread, INFINITE);
 			return ecode;
 		}
 		DoFrameLogic();

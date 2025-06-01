@@ -259,9 +259,11 @@ void WINAPI generateChunkMesh(void* lparam)
 	chunk->mesh.vertexBuffer = createVertexBuffer(vertexList, (vertexListSize * sizeof(vertex)));
 
 	chunk->chunkIsReady = true;
+
 	EnterCriticalSection(mutex);
 	hashmap_set(chunkHashmap, chunk);
 	LeaveCriticalSection(mutex);
+
 	free(indexList);
 	free(vertexList);
 	free(lparam);
