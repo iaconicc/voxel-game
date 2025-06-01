@@ -477,7 +477,7 @@ bool DxsettingUp()
 }
 
 
-static ID3D11Buffer* createVertexBuffer(vertex* vertexArray, int sizeInBytes)
+ID3D11Buffer* createVertexBuffer(vertex* vertexArray, int sizeInBytes)
 {
 	HRESULT hr;
 	WCHAR* msg;
@@ -499,7 +499,7 @@ static ID3D11Buffer* createVertexBuffer(vertex* vertexArray, int sizeInBytes)
 	return vertexBuffer;
 }
 
-static ID3D11Buffer* createIndexDataBuffer(int* indexArray, int sizeInBytes)
+ID3D11Buffer* createIndexDataBuffer(int* indexArray, int sizeInBytes)
 {
 	HRESULT hr;
 	WCHAR* msg;
@@ -617,10 +617,7 @@ static void updateTransformMatrix(vec3 pos)
 {	
 	//calculate a transform matrixes
 	glm_mat4_identity(matrixBuffer.transformationMatrix);
-
-	//vec3 newpos = {0.0f, 0.0f, 0.0f};
 	glm_translate(matrixBuffer.transformationMatrix, pos);
-
 	glm_mat4_transpose(matrixBuffer.transformationMatrix);
 
 	HRESULT hr;
@@ -652,22 +649,15 @@ static void updateViewMatrix()
 	deviceContext->lpVtbl->Unmap(deviceContext, DXMatrixBuffer, 0);
 }
 
-void DrawMesh(vertex* vertexList, int* indexList, int vertexListByteSize, int indexListByteSize, vec3 pos)
+void DrawMesh(ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, int indexBufferElements, vec3 pos)
 {
-		ID3D11Buffer* vertexBuffer = createVertexBuffer(vertexList, vertexListByteSize);
-		ID3D11Buffer* indexBuffer = createIndexDataBuffer(indexList, indexListByteSize);
-
 		deviceContext->lpVtbl->IASetVertexBuffers(deviceContext, 0, 1, &vertexBuffer, &VertexSizeInBytes, &offset);
 		deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, indexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
 		updateTransformMatrix(pos);
 
 		deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, depthStencilView);
-		deviceContext->lpVtbl->DrawIndexed(deviceContext, (indexListByteSize / sizeof(int)), 0, 0);
-
-
-		vertexBuffer->lpVtbl->Release(vertexBuffer);
-		indexBuffer->lpVtbl->Release(indexBuffer);
+		deviceContext->lpVtbl->DrawIndexed(deviceContext, indexBufferElements, 0, 0);
 }
 
 void EndFrame()

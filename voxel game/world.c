@@ -5,6 +5,8 @@
 #include <processthreadsapi.h>
 #include "hashmap.h"
 #include "DX3D11.h"
+#include <sys/timeb.h>
+#include <time.h>
 
 #define MODULE L"WORLD"
 #include "Logger.h"
@@ -69,11 +71,11 @@ static int chunkCompare(const void* a, const void* b, void* udata)
 static void chunkFree(void* item)
 {
 	const Chunk* chunk = (Chunk*) item;
-	if (chunk->mesh.indexlist){
-		free(chunk->mesh.indexlist);
+	if (chunk->mesh.indexBuffer){
+		chunk->mesh.indexBuffer->lpVtbl->Release(chunk->mesh.indexBuffer);
 	}
-	if (chunk->mesh.vertexList){
-		free(chunk->mesh.vertexList);
+	if (chunk->mesh.vertexBuffer){
+		chunk->mesh.vertexBuffer->lpVtbl->Release(chunk->mesh.vertexBuffer);
 	}
 }
 
@@ -98,30 +100,27 @@ void StartWorld()
 	handle = CreateThread(0,0, WorldThread, 0, 0, &id);
 }
 
-static bool sendChunkData(const void* item, void* udata){
-	Chunk* chunk = (Chunk*) item;
-	vec3 pos = { ((float)(chunk->pos.x)) * 16, 0.0f, ((float)(chunk->pos.z)) * 16 };
-	DrawMesh(chunk->mesh.vertexList, chunk->mesh.indexlist, chunk->mesh.vertexListSize * sizeof(vertex), chunk->mesh.IndexListSize * sizeof(int), pos);
-	return true;
-}
-
 void DrawChunks()
 {
 	if (chunkHashmap) {
 		Chunk* chunk = NULL;
 		size_t i = 0;
 
+		struct _timeb start, stop;
+		
+		_ftime64_s(&start);
 		EnterCriticalSection(&chunkmapMutex);
-
 		while (hashmap_iter(chunkHashmap, &i, &chunk)) {
 			if (chunk->chunkIsReady) {
 				vec3 pos = { ((float)(chunk->pos.x)) * 16, 0.0f, ((float)(chunk->pos.z)) * 16 };
-				DrawMesh(chunk->mesh.vertexList, chunk->mesh.indexlist, chunk->mesh.vertexListSize * sizeof(vertex), chunk->mesh.IndexListSize * sizeof(int), pos);
+				DrawMesh(chunk->mesh.vertexBuffer, chunk->mesh.indexBuffer, chunk->mesh.IndexListSize, pos);
 			}
-		}
-
-		//hashmap_scan(chunkHashmap, sendChunkData, NULL);
+		};
 		LeaveCriticalSection(&chunkmapMutex);
+		_ftime64_s(&stop);
+		
+		LogDebug(L"time elapsed: %f",(float)((((stop.time * 1000) + stop.millitm))-(((start.time * 1000)+start.millitm))));
+		
 	}
 }
 

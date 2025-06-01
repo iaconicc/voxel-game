@@ -115,7 +115,7 @@ static bool checkVoxel(Chunk* chunk,vec3 pos)
 	return ISBLOCKSOLID(chunk->blocksState[x][y][z].blockstate);
 }
 
-static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex, int* currentIndexListIndex)
+static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex, int* currentIndexListIndex, vertex* vertexList, int* indexList)
 {	
 		for (size_t f = 0; f < 6; f++)
 		{
@@ -129,7 +129,7 @@ static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex,
 				{
 					//add vertex
 					int FaceIndex = cubeFaces[f].index[v];
-					glm_vec3_add(cubeVertexs[FaceIndex].pos, pos, chunk->mesh.vertexList[(*currentVertexindex)].pos);
+					glm_vec3_add(cubeVertexs[FaceIndex].pos, pos, vertexList[(*currentVertexindex)].pos);
 
 					//rotate the uv if needed
 					vec2 rotatedUv;
@@ -170,17 +170,17 @@ static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex,
 					//add the offset to scaled uv
 					glm_vec2_add(ScaledUV, UvOffsets, ScaledUV);
 
-					glm_vec2_copy(ScaledUV, chunk->mesh.vertexList[(*currentVertexindex)].texPos);
+					glm_vec2_copy(ScaledUV, vertexList[(*currentVertexindex)].texPos);
 					(*currentVertexindex)++;
 				}
 
 				//add indexes so that it connects the added vertexs in clockwise order
-				chunk->mesh.indexlist[(*currentIndexListIndex)++] = baseIndex;
-				chunk->mesh.indexlist[(*currentIndexListIndex)++] = baseIndex + 3;
-				chunk->mesh.indexlist[(*currentIndexListIndex)++] = baseIndex + 2;
-				chunk->mesh.indexlist[(*currentIndexListIndex)++] = baseIndex;
-				chunk->mesh.indexlist[(*currentIndexListIndex)++] = baseIndex + 1;
-				chunk->mesh.indexlist[(*currentIndexListIndex)++] = baseIndex + 3;
+				indexList[(*currentIndexListIndex)++] = baseIndex;
+				indexList[(*currentIndexListIndex)++] = baseIndex + 3;
+				indexList[(*currentIndexListIndex)++] = baseIndex + 2;
+				indexList[(*currentIndexListIndex)++] = baseIndex;
+				indexList[(*currentIndexListIndex)++] = baseIndex + 1;
+				indexList[(*currentIndexListIndex)++] = baseIndex + 3;
 			}
 		}
 }
@@ -199,7 +199,7 @@ void WINAPI generateChunkMesh(void* lparam)
 
 	chunk->chunkIsReady = false;
 	chunk->mesh.IndexListSize = 0;
-	chunk->mesh.vertexListSize = 0;
+	int vertexListSize = 0;
 
 	chunk->pos.x = chunkGen->x;
 	chunk->pos.z = chunkGen->z;
@@ -223,7 +223,7 @@ void WINAPI generateChunkMesh(void* lparam)
 						if (!checkVoxel(chunk, blockToCheck))
 						{
 							chunk->mesh.IndexListSize += 6;
-							chunk->mesh.vertexListSize += 4;
+							vertexListSize += 4;
 						}
 					}
 				}
@@ -232,10 +232,10 @@ void WINAPI generateChunkMesh(void* lparam)
 	}
 	
 	//allocate memory enough for both indices and vertexes
-	chunk->mesh.indexlist = calloc(chunk->mesh.IndexListSize,sizeof(int));
-	chunk->mesh.vertexList = calloc(chunk->mesh.vertexListSize,sizeof(vertex));
+	int* indexList = calloc(chunk->mesh.IndexListSize,sizeof(int));
+	vertex* vertexList = calloc(vertexListSize,sizeof(vertex));
 
-	LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", chunk->mesh.vertexListSize, ((sizeof(vertex) * chunk->mesh.vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000));
+	//LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexListSize, ((sizeof(vertex) * vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000));
 
 	int currentVertexindex = 0;
 	int currentIndexListindex = 0;
@@ -249,16 +249,21 @@ void WINAPI generateChunkMesh(void* lparam)
 				vec3 pos = { x, y, z};
 				if (checkVoxel(chunk,pos))
 				{
-					addVoxelDataToChunk(chunk, pos, &currentVertexindex, &currentIndexListindex);
+					addVoxelDataToChunk(chunk, pos, &currentVertexindex, &currentIndexListindex, vertexList, indexList);
 				}
 			}
 		}
 	}
 
+	chunk->mesh.indexBuffer = createIndexDataBuffer(indexList, (chunk->mesh.IndexListSize*sizeof(int)));
+	chunk->mesh.vertexBuffer = createVertexBuffer(vertexList, (vertexListSize * sizeof(vertex)));
+
 	chunk->chunkIsReady = true;
 	EnterCriticalSection(mutex);
 	hashmap_set(chunkHashmap, chunk);
 	LeaveCriticalSection(mutex);
+	free(indexList);
+	free(vertexList);
 	free(lparam);
 	return 0;
 }

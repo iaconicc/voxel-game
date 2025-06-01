@@ -11,9 +11,8 @@ typedef struct {
 }Block;
 
 typedef struct {
-	vertex* vertexList;
-	int* indexlist;
-	int vertexListSize;
+	ID3D11Buffer* vertexBuffer;
+	ID3D11Buffer* indexBuffer;
 	int IndexListSize;
 }chunkMesh;
 
