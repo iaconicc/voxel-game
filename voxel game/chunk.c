@@ -1,12 +1,17 @@
 #include "chunk.h"
-#include "DX3D11.h"
-#include <cglm.h>
+
+#include "world.h"
+#include "Blocks.h"
+#include "BlockTexture.h"
+#include "App.h"
+#include "hashmap.h"
+#include <synchapi.h>
 
 #define MODULE L"chunk"
 #include "Logger.h"
 
 typedef struct {
-	unsigned int index[6];
+	int index[6];
 }face;
 
 const static vertex cubeVertexs[8] = {
@@ -48,85 +53,158 @@ const static vec2 uvs[6][4] = {
 	{{1.0f, 0.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}}, //east face
 };
 
-vertex* vertexlist;
-int* indexlist;
+const static vec2 uvs90[6][4] = {
+	{{0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}}, // south face
+	{{0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}}, // north face
+	{{0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}}, // top face
+	{{0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}}, // bottom face
+	{{0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}}, // west face
+	{{0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}}  // east face
+};
 
-#define CHUNK_SIZE  16
-#define CHUNK_SIZEV 32
+const static vec2 uvs180[6][4] = {
+	{{1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f}}, // south face
+	{{1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f}}, // north face
+	{{1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f}}, // top face
+	{{1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f}}, // bottom face
+	{{1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f}}, // west face
+	{{1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f}}  // east face
+};
 
-typedef struct{
-	bool isSolid;
-}Block;
+const static vec2 uvs270[6][4] = {
+	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}, // south face
+	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}, // north face
+	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}, // top face
+	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}, // bottom face
+	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}, // west face
+	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}  // east face
+};
 
-typedef struct {
-	Block blocks[CHUNK_SIZE][CHUNK_SIZEV][CHUNK_SIZE];
-}Chunk;
+#define ISBLOCKSOLID(blockstate) (blockstate & 1)
+#define SetBLOCKSOLID(blockstate) ((blockstate & 1) | 1)
+#define UnsetBLOCKSOLID(blockstate) ((blockstate & 1) & ~1)
 
-Chunk chunk;
-
-static void populateVoxelMap(){
+static void populateVoxelMap(Chunk* chunk){
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
 	{
 		for (size_t y = 0; y < CHUNK_SIZEV; y++)
 		{
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
-				chunk.blocks[x][y][z].isSolid = true;
+				chunk->blocksState[x][y][z].blockstate = SetBLOCKSOLID(chunk->blocksState[x][y][z].blockstate);
 			}
 		}
 	}
 }
 
-static bool checkVoxel(vec3 pos)
+static bool checkVoxel(Chunk* chunk,vec3 pos)
 {
 	int x = (int) floorf(pos[0]);
 	int y = (int) floorf(pos[1]);
 	int z = (int) floorf(pos[2]);
 
-	if (x < 0 || x > CHUNK_SIZE - 1 || y < 0 || y > CHUNK_SIZEV - 1 || z < 0 || z > CHUNK_SIZE - 1)
+	if (x < 0 || x > CHUNK_SIZE - 1 || y < 0 || z < 0 || z > CHUNK_SIZE - 1)
 	{
+		return true;
+	}
+
+	if (y > CHUNK_SIZEV - 1){
 		return false;
 	}
 
-	return chunk.blocks[x][y][z].isSolid;
+	return ISBLOCKSOLID(chunk->blocksState[x][y][z].blockstate);
 }
 
-int currentVertexindex = 0;
-int currentIndexListindex = 0;
-
-static void addVoxelDataToChunk(vec3 pos)
-{
+static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex, int* currentIndexListIndex, vertex* vertexList, int* indexList)
+{	
 		for (size_t f = 0; f < 6; f++)
 		{
 			vec3 blockTocheck;
 			glm_vec3_add(pos, faceChecks[f], blockTocheck);
-
-			if (!checkVoxel(blockTocheck)) {
-				
-				int baseIndex = currentVertexindex;
+			if (!checkVoxel(chunk, blockTocheck)) {
+				BlockType block = GetBlockTypeByID(3);
+				int baseIndex = (*currentVertexindex);
+				//loop through each vertex and add a uv and vertex
 				for (size_t v = 0; v < 4; v++)
 				{
+					//add vertex
 					int FaceIndex = cubeFaces[f].index[v];
-					glm_vec3_add(cubeVertexs[FaceIndex].pos, pos, vertexlist[currentVertexindex].pos);
-					glm_vec2_copy(uvs[f][v], vertexlist[currentVertexindex].texPos);
-					currentVertexindex++;
-				}
-				indexlist[currentIndexListindex++] = baseIndex;
-				indexlist[currentIndexListindex++] = baseIndex + 3;
-				indexlist[currentIndexListindex++] = baseIndex + 2;
-				indexlist[currentIndexListindex++] = baseIndex;
-				indexlist[currentIndexListindex++] = baseIndex + 1;
-				indexlist[currentIndexListindex++] = baseIndex + 3;
+					glm_vec3_add(cubeVertexs[FaceIndex].pos, pos, vertexList[(*currentVertexindex)].pos);
 
+					//rotate the uv if needed
+					vec2 rotatedUv;
+					switch (block.directionalModels[0].faces[f].textureRotation)
+					{
+						case 90:
+						{
+							glm_vec2_copy(uvs90[f][v], rotatedUv);
+							break;
+						}
+						case 180:
+						{
+							glm_vec2_copy(uvs180[f][v], rotatedUv);
+							break;
+						}
+						case 270:
+						{
+							glm_vec2_copy(uvs270[f][v], rotatedUv);
+							break;
+						}
+						default:
+						{
+							glm_vec2_copy(uvs[f][v], rotatedUv);
+							break;
+						}
+					}
+
+					//scale the uv to the texture of first block
+					vec2 ScaledUV = { 0 };
+					ScaledUV[0] = GetUvOfOneBlockX();
+					ScaledUV[1] = GetUvOfOneBlockY();
+					glm_vec2_mul(rotatedUv, ScaledUV, ScaledUV);
+
+					//get Uv offsets for a texture in the atlas
+					vec2 UvOffsets = {0};
+					GetUvOffsetByTexId(block.directionalModels[0].faces[f].textureId, &UvOffsets[0], &UvOffsets[1]);
+
+					//add the offset to scaled uv
+					glm_vec2_add(ScaledUV, UvOffsets, ScaledUV);
+
+					glm_vec2_copy(ScaledUV, vertexList[(*currentVertexindex)].texPos);
+					(*currentVertexindex)++;
+				}
+
+				//add indexes so that it connects the added vertexs in clockwise order
+				indexList[(*currentIndexListIndex)++] = baseIndex;
+				indexList[(*currentIndexListIndex)++] = baseIndex + 3;
+				indexList[(*currentIndexListIndex)++] = baseIndex + 2;
+				indexList[(*currentIndexListIndex)++] = baseIndex;
+				indexList[(*currentIndexListIndex)++] = baseIndex + 1;
+				indexList[(*currentIndexListIndex)++] = baseIndex + 3;
 			}
 		}
 }
 
-void createBlock()
+void WINAPI generateChunkMesh(void* lparam)
 {
-	populateVoxelMap();
-	int indexSize = 0;
-	int vertexSize = 0;
+	chunkGenData* chunkGen = (chunkGenData*) lparam;
+
+	CRITICAL_SECTION* mutex = chunkGen->criticalSection;
+	struct hashmap* chunkHashmap = chunkGen->hash;
+	
+	Chunk* chunk = malloc(sizeof(Chunk));
+	if (!chunk){
+		return -1;
+	}
+
+	chunk->chunkIsReady = false;
+	chunk->mesh.IndexListSize = 0;
+	int vertexListSize = 0;
+
+	chunk->pos.x = chunkGen->x;
+	chunk->pos.z = chunkGen->z;
+
+	populateVoxelMap(chunk);
 
 	//check each face and calculate how large the vertex and index list should be
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
@@ -136,30 +214,31 @@ void createBlock()
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
 				vec3 pos = { x,y,z };
-				if (checkVoxel(pos))
+				if (checkVoxel(chunk, pos))
 				{
 					for (size_t f = 0; f < 6; f++)
 					{	
 						vec3 blockToCheck;
 						glm_vec3_add(pos, faceChecks[f], blockToCheck);
-						if (!checkVoxel(blockToCheck))
+						if (!checkVoxel(chunk, blockToCheck))
 						{
-							indexSize += 6;
-							vertexSize += 4;
+							chunk->mesh.IndexListSize += 6;
+							vertexListSize += 4;
 						}
 					}
 				}
 			}
 		}
 	}
-
 	
 	//allocate memory enough for both indices and vertexes
-	indexlist = calloc(indexSize,sizeof(int));
-	vertexlist = calloc(vertexSize,sizeof(vertex));
+	int* indexList = calloc(chunk->mesh.IndexListSize,sizeof(int));
+	vertex* vertexList = calloc(vertexListSize,sizeof(vertex));
 
-	LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexSize, ((sizeof(vertex) * vertexSize)/1000), indexSize, ((sizeof(int) * indexSize)/1000));
+	//LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexListSize, ((sizeof(vertex) * vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000));
 
+	int currentVertexindex = 0;
+	int currentIndexListindex = 0;
 	//add vertexs and indices
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
 	{
@@ -168,20 +247,23 @@ void createBlock()
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
 				vec3 pos = { x, y, z};
-				if (checkVoxel(pos))
+				if (checkVoxel(chunk,pos))
 				{
-					addVoxelDataToChunk(pos);
+					addVoxelDataToChunk(chunk, pos, &currentVertexindex, &currentIndexListindex, vertexList, indexList);
 				}
 			}
 		}
 	}
 
-	createVertexBufferAndAppendToList(vertexlist, sizeof(vertex) * vertexSize);
-	createIndexDataBuffer(indexlist, sizeof(int) * indexSize);
-}
+	chunk->mesh.indexBuffer = createIndexDataBuffer(indexList, (chunk->mesh.IndexListSize*sizeof(int)));
+	chunk->mesh.vertexBuffer = createVertexBuffer(vertexList, (vertexListSize * sizeof(vertex)));
 
-void destroyBlock()
-{
-	free(vertexlist);
-	free(indexlist);
+	chunk->chunkIsReady = true;
+	EnterCriticalSection(mutex);
+	hashmap_set(chunkHashmap, chunk);
+	LeaveCriticalSection(mutex);
+	free(indexList);
+	free(vertexList);
+	free(lparam);
+	return 0;
 }

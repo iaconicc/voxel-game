@@ -48,7 +48,7 @@ bool InitMouseModuleAndGetOwnership(MouseOps** ops)
 
 	if (!MouseEvents)
 	{
-		LogException(RC_MOUSE_EXCEPTION, L"An exception occured while creating mouse events buffer");
+		LogException(L"An exception occured while creating mouse events buffer");
 		return false;
 	}
 

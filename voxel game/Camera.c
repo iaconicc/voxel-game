@@ -16,14 +16,18 @@ Camera camera;
 
 void getCameraTargetAndPosition(vec3* pos, vec3* target)
 {
-    memcpy(pos, &camera.pos, sizeof(vec3));
-    memcpy(target, &camera.target, sizeof(vec3));
+    if (pos){
+        memcpy(pos, &camera.pos, sizeof(vec3));
+    }
+    if (target){
+        memcpy(target, &camera.target, sizeof(vec3));
+    }
 }
 
 void initialiseCamera()
 {
-    glm_vec3_copy((vec3) { 0.0f, 0.0f, -5.0f }, camera.pos);
-    glm_vec3_copy((vec3) { 0.0f, 0.0f, 0.0f }, camera.target);
+    glm_vec3_copy((vec3) { 0.0f, 33.0f, -5.0f }, camera.pos);
+    glm_vec3_copy((vec3) { 0.0f, 33.0f, 0.0f }, camera.target);
     glm_vec3_sub(camera.target, camera.pos, camera.forward); //calculate forward vector
     glm_vec3_normalize(camera.forward);
     glm_vec3_cross(camera.forward, up, camera.right);

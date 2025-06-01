@@ -6,11 +6,15 @@
 #include <direct.h>
 #include <fcntl.h>
 #include <io.h>
-#include <dxgidebug.h>
 
 FILE* gamelog;
 IDXGIInfoQueue* infoManager;
+IDXGIDebug* debug;
 int currentDXmessage = 0;
+
+IDXGIDebug* getDxgiDebug(){
+	return debug;
+}
 
 void setupInfoManager()  
 {  
@@ -36,6 +40,11 @@ void setupInfoManager()
     if (FAILED(hr))  {  
         LogWarning(L"Failed to get IDXGIInfoQueue interface: %s", formatWin32ErrorCodes(hr));  
     }  
+
+	hr = DXGIgetdebuginterface(&IID_IDXGIDebug, (void**)&debug);
+	if (FAILED(hr)) {
+		LogWarning(L"Failed to get IDXGIInfoQueue interface: %s", formatWin32ErrorCodes(hr));
+	}
 
 	FreeLibrary(lib); // Unload the library
 	LogDebug(L"initialised DX info manager");
@@ -88,6 +97,11 @@ static void stopInfoManager()
 	if (infoManager)
 	{
 		infoManager->lpVtbl->Release(infoManager);
+	}
+	if (debug)
+	{
+		debug->lpVtbl->ReportLiveObjects(debug, DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_DETAIL);
+		debug->lpVtbl->Release(debug);
 	}
 }
 
@@ -185,36 +199,13 @@ void logDXMessages()
 	currentDXmessage = end;
 }
 
-void __LogException(WCHAR* file, int line,int type, WCHAR* module, WCHAR* fmt, ...)
+void __LogException(WCHAR* file, int line, WCHAR* module, WCHAR* fmt, ...)
 {
 	if (!gamelog) return;
 
 	time_t now = time(NULL);
 	struct tm local;
 	localtime_s(&local, &now);
-
-	WCHAR* stringtype = NULL;
-	switch (type)
-	{
-	case RC_LOGGER_EXCEPTION:
-		stringtype = L"loggerException";
-		break;
-	case RC_DX3D11_EXPCEPTION:
-		stringtype = L"DX11Exception";
-		break;
-	case RC_WND_EXCEPTION:
-		stringtype = L"wndException";
-		break;
-	case RC_KBD_EXCEPTION:
-		stringtype = L"kbdException";
-		break;
-	case RC_MOUSE_EXCEPTION:
-		stringtype = L"mouseException";
-		break;
-	default:
-		stringtype = L"unknown";
-		break;
-	}
 
 	WCHAR msg[1024];
 	va_list args;
@@ -226,16 +217,16 @@ void __LogException(WCHAR* file, int line,int type, WCHAR* module, WCHAR* fmt, .
 
 #ifdef _DEBUG //DEBUG
 	swprintf_s(formattedMsg, sizeof(formattedMsg) / sizeof(WCHAR),
-		L"[%04d-%02d-%02d %02d:%02d:%02d][ERROR][%s] exception type:%s called at file:%s in line:%u with description:%s\n",
+		L"[%04d-%02d-%02d %02d:%02d:%02d][ERROR][%s] exception called at file:%s in line:%u with description:%s\n",
 		local.tm_year + 1900, local.tm_mon + 1, local.tm_mday,
 		local.tm_hour, local.tm_min, local.tm_sec,
-		module, stringtype, file, line, msg);
+		module, file, line, msg);
 #else // Release: removes file and line
 	swprintf_s(formattedMsg, sizeof(formattedMsg) / sizeof(WCHAR),
-		L"[%04d-%02d-%02d %02d:%02d:%02d][ERROR][%s] exception type:%s called with description:%s\n",
+		L"[%04d-%02d-%02d %02d:%02d:%02d][ERROR][%s] exception called with description:%s\n",
 		local.tm_year + 1900, local.tm_mon + 1, local.tm_mday,
 		local.tm_hour, local.tm_min, local.tm_sec,
-		module, stringtype, msg);
+		module, msg);
 #endif 
 
 	// Write to log file

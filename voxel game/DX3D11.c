@@ -1,8 +1,10 @@
 #include "DX3D11.h"
 #include "Camera.h"
+#include "BlockTexture.h"
 #include <d3dcompiler.h>
 #include <wincodec.h>
-
+#include <d3d11_4.h>
+#include "world.h"
 
 #define MODULE L"DX3D11"
 #include "Logger.h"
@@ -12,9 +14,13 @@
 #pragma comment(lib, "D3DCompiler.lib")
 #pragma comment(lib, "Windowscodecs.lib")
 
+bool settingUp = true;
+
 HWND hwnd;
 int windowedwidth;
 int windowedheight;
+
+ID3D11Multithread* thread = NULL;
 
 IDXGISwapChain* swapchain = NULL;
 ID3D11Device* device = NULL;
@@ -24,10 +30,6 @@ ID3D11RenderTargetView* renderTargetView = NULL;
 ID3D11DepthStencilState* depthStencilState;
 ID3D11Texture2D* depthTexture;
 ID3D11DepthStencilView* depthStencilView;
-
-//vertex and index buffers
-ID3D11Buffer* vertexBuffers[32];
-ID3D11Buffer* IndexBuffer = NULL;
 
 //constant buffers (matrixes)
 MatrixBuffers matrixBuffer;
@@ -42,10 +44,13 @@ ID3D11SamplerState* samplerState = NULL;
 
 ID3D11InputLayout* inputLayout = NULL;
 
+IDXGIFactory* dxgiFactory = NULL;
+
 UINT offset = 0;
 UINT VertexSizeInBytes = sizeof(vertex);
 
-static bool isWindowed = true;
+bool isWindowed = true;
+bool render = true;
 
 DXGI_SWAP_CHAIN_DESC sd = {
 	.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
@@ -69,9 +74,7 @@ DXGI_SWAP_CHAIN_DESC sd = {
 #define LOGDXMESSAGES()
 #endif
 
-#define DXFUNCTIONFAILED(hrcall) if(FAILED(hr = (hrcall))){ LOGDXMESSAGES(); LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr); return;}
-
-
+#define DXFUNCTIONFAILED(hrcall) if(FAILED(hr = (hrcall))){ LOGDXMESSAGES(); LOGWIN32EXCEPTION(hr); return;}
 static void CalculatePerspective(int width, int height)
 {
 	//calculate the perspective projection matrix
@@ -137,6 +140,7 @@ static void SetDepthStateAndCreateDepthTexture()
 	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
 
 	DXFUNCTIONFAILED(device->lpVtbl->CreateDepthStencilState(device, &dsDesc, &depthStencilState));
+
 	deviceContext->lpVtbl->OMSetDepthStencilState(deviceContext, depthStencilState, 1u);
 
 	createDepthTexture();
@@ -146,6 +150,7 @@ static void CreateRenderTargetFromSwapChain()
 {
 	HRESULT hr;
 	WCHAR* msg;
+
 	//getting swap chain buffer
 	ID3D11Resource* backBuffer = NULL;
 	DXFUNCTIONFAILED(swapchain->lpVtbl->GetBuffer(swapchain, 0, &IID_ID3D11Resource, &backBuffer));
@@ -155,43 +160,109 @@ static void CreateRenderTargetFromSwapChain()
 	backBuffer->lpVtbl->Release(backBuffer);
 }
 
-void toggleFullScreen()
+
+static void resizeSwapchain(int width, int height)
 {
 	HRESULT hr;
 	WCHAR* msg;
 
-	if (depthTexture)
+	if (swapchain)
 	{
-		depthTexture->lpVtbl->Release(depthTexture);
-		depthTexture = NULL;
-	}
+		DXGI_MODE_DESC md = { 0 };
+		if (!isWindowed)
+		{
+			IDXGIOutput* output;
+			DXFUNCTIONFAILED(swapchain->lpVtbl->GetContainingOutput(swapchain, &output));
 
-	if (depthStencilView)
+			//checking how many modes are available
+			UINT modesAvailable;
+			DXFUNCTIONFAILED(output->lpVtbl->GetDisplayModeList(output, DXGI_FORMAT_B8G8R8A8_UNORM, 0, &modesAvailable, NULL));
+			DXGI_MODE_DESC* modeList = malloc(sizeof(DXGI_MODE_DESC) * modesAvailable);
+			DXFUNCTIONFAILED(output->lpVtbl->GetDisplayModeList(output, DXGI_FORMAT_B8G8R8A8_UNORM, 0, &modesAvailable, modeList));
+			md = modeList[modesAvailable - 1];
+			free(modeList);
+			output->lpVtbl->Release(output);
+		}else{
+			md.Width = width;
+			md.Height = height;
+		}
+
+		if (depthTexture) {
+			depthTexture->lpVtbl->Release(depthTexture);
+			depthTexture = NULL;
+		}
+
+		if (depthStencilView) {
+			depthStencilView->lpVtbl->Release(depthStencilView);
+			depthStencilView = NULL;
+		}
+
+		if (renderTargetView) {
+			renderTargetView->lpVtbl->Release(renderTargetView);
+			renderTargetView = NULL;
+		}
+
+		LogDebug(L"(%u , %u)", md.Width, md.Height);
+		DXFUNCTIONFAILED(swapchain->lpVtbl->ResizeBuffers(
+			swapchain,
+			0, // Use the same number of buffers
+			md.Width,
+			md.Height, 
+			DXGI_FORMAT_B8G8R8A8_UNORM,
+			DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
+		));
+
+		DXFUNCTIONFAILED(swapchain->lpVtbl->GetDesc(swapchain, &sd));
+
+		CreateRenderTargetFromSwapChain();
+		CalculatePerspectiveAndSetViewport();
+		createDepthTexture();
+	}
+}
+
+bool wasTabbing = false;
+bool switching = false;
+void setInactive(){
+	if (!isWindowed){
+		toggleFullScreen();
+		wasTabbing = true;
+	}
+	render = false;
+}
+
+void setactive() {
+	if (!switching)
 	{
-		depthStencilView->lpVtbl->Release(depthStencilView);
-		depthStencilView = NULL;
+		if (wasTabbing) {
+			wasTabbing = false;
+			toggleFullScreen();
+		}
 	}
+	render = true;
+}
 
-	if (renderTargetView)
-	{
-		renderTargetView->lpVtbl->Release(renderTargetView);
-		renderTargetView = NULL;
-	}
-
-
-
-
-
+void toggleFullScreen()
+{
+	HRESULT hr;
+	WCHAR* msg;
+	
+	switching = true;
 	isWindowed = !isWindowed;
 
-	DXGI_MODE_DESC md = { 0 };
 	if (isWindowed) {
-	DXFUNCTIONFAILED(swapchain->lpVtbl->SetFullscreenState(swapchain, FALSE, NULL));
+		if (swapchain)
+		{
+			DXFUNCTIONFAILED(swapchain->lpVtbl->SetFullscreenState(swapchain, FALSE, NULL));
+		}
+		else{
+			return;
+		}
 	}
+
+	DXGI_MODE_DESC md = { 0 };
+	//making sure we get the highest resolution possible when in fullscreen mode
 	if (!isWindowed) {
 		DXFUNCTIONFAILED(swapchain->lpVtbl->SetFullscreenState(swapchain, TRUE, NULL));
-
-		//making sure we get the highest resolution possible
 		IDXGIOutput* output;
 		DXFUNCTIONFAILED(swapchain->lpVtbl->GetContainingOutput(swapchain, &output));
 
@@ -209,17 +280,7 @@ void toggleFullScreen()
 		md.Height = windowedheight;
 	}
 
-	// Resize the swap chain buffers
-	DXFUNCTIONFAILED(swapchain->lpVtbl->ResizeBuffers(
-		swapchain,
-		0, // Use the same number of buffers
-		md.Width, // Automatically match the window width
-		md.Height, // Automatically match the window height
-		DXGI_FORMAT_B8G8R8A8_UNORM,
-		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
-	));
-
-	DXFUNCTIONFAILED(swapchain->lpVtbl->GetDesc(swapchain, &sd));
+	resizeSwapchain(md.Width, md.Height);
 
 	if (isWindowed)
 	{
@@ -227,9 +288,6 @@ void toggleFullScreen()
 		SetWindowPos(hwnd, HWND_TOP, 0, 0, sd.BufferDesc.Width, sd.BufferDesc.Height, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE);
 	}
 
-	CreateRenderTargetFromSwapChain();
-	createDepthTexture();
-	CalculatePerspectiveAndSetViewport();
 }
 
 void UpdateOnResize(int width, int height)
@@ -247,7 +305,9 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 
 	hwnd = hwnd;
 	sd.OutputWindow = hwnd;
-	sd.Windowed = true;
+	sd.Windowed = isWindowed;
+
+	
 
 	int DeviceFlags = 0;
 
@@ -269,82 +329,42 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 
 	//for debugging macro
 	WCHAR* msg;
+	HRESULT hr;
 
 	if (FAILED(result))
 	{
 		LOGDXMESSAGES();
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, result);
+		LOGWIN32EXCEPTION(result);
 		return;
 	}
+
+	IDXGIDevice* dxgiDevice = NULL;
+	DXFUNCTIONFAILED(device->lpVtbl->QueryInterface(device,&IID_IDXGIDevice, (void**)&dxgiDevice));
+
+	IDXGIAdapter* dxgiAdapter = NULL;
+	DXFUNCTIONFAILED(dxgiDevice->lpVtbl->GetParent(dxgiDevice,&IID_IDXGIAdapter, (void**)&dxgiAdapter));
+	
+	DXFUNCTIONFAILED(dxgiAdapter->lpVtbl->GetParent(dxgiAdapter,&IID_IDXGIFactory, (void**)&dxgiFactory));
+
+	dxgiDevice->lpVtbl->Release(dxgiDevice);
+	dxgiAdapter->lpVtbl->Release(dxgiAdapter);
 
 	LogInfo(L"DX3D device created succesfully");
 
 	LogInfo(L"setting up base pipeline...");
 	//setup pipeline
-	HRESULT hr;
 
-	//load texture
-	IWICImagingFactory* imagingFactory = NULL;
-	if ((hr = CoCreateInstance(&CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER, &IID_IWICImagingFactory, &imagingFactory)) != S_OK)
-	{
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
-		return;
-	}
 
-	IWICBitmapDecoder* bitmapDecoder = NULL;
-	if ((hr = imagingFactory->lpVtbl->CreateDecoderFromFilename(imagingFactory, L"ReferenceTexture.png", NULL, GENERIC_READ, 0, &bitmapDecoder)) != S_OK)
-	{
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
-		return;
-	}
-
-	IWICBitmapFrameDecode* bitmapFrameDecode;
-	if ((hr = bitmapDecoder->lpVtbl->GetFrame(bitmapDecoder, 0, &bitmapFrameDecode)) != S_OK)
-	{
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
-		return;
-	}
-
-	IWICFormatConverter* formatConverter = NULL;
-	hr = imagingFactory->lpVtbl->CreateFormatConverter(imagingFactory, &formatConverter);
-	if (FAILED(hr)) {
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
-		return;
-	}
-
-	hr = formatConverter->lpVtbl->Initialize(
-		formatConverter,
-		(IWICBitmapSource*)bitmapFrameDecode,
-		&GUID_WICPixelFormat32bppRGBA, // Convert to 32-bit RGBA
-		WICBitmapDitherTypeNone,
-		NULL,
-		0.0,
-		WICBitmapPaletteTypeCustom
-	);
-	if (FAILED(hr)) {
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
-		return;
-	}
-
+	//load texture atlas
 	int imageWidth = 0;
 	int imageHeight = 0;
-	// Update the size and copy pixels from the format converter
-	hr = formatConverter->lpVtbl->GetSize(formatConverter, &imageWidth, &imageHeight);
-	if (FAILED(hr)) {
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
+	void* textureAtlasBitmap = NULL;
+	if (!(textureAtlasBitmap = LoadTextureAtlas(&imageWidth, &imageHeight))){
 		return;
 	}
 
-	int sizeInBytes = (imageWidth * imageHeight) * 4;
-	void* temp = malloc(sizeInBytes);
-	hr = formatConverter->lpVtbl->CopyPixels(formatConverter, NULL, 4 * imageWidth, sizeInBytes, temp);
-	if (FAILED(hr)) {
-		LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
-		return;
-	}
-
-	// Release the format converter after use
-	formatConverter->lpVtbl->Release(formatConverter);
+	//DXFUNCTIONFAILED(deviceContext->lpVtbl->QueryInterface(deviceContext, &IID_ID3D11Multithread, &thread));
+	//thread->lpVtbl->SetMultithreadProtected(thread, true);
 
 	//create texture resource
 	D3D11_TEXTURE2D_DESC td = {0};
@@ -361,15 +381,10 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	td.MiscFlags = 0;
 
 	D3D11_SUBRESOURCE_DATA tsd = {0};
-	tsd.pSysMem = temp;
+	tsd.pSysMem = textureAtlasBitmap;
 	tsd.SysMemPitch = 4 * imageWidth;
-	DXFUNCTIONFAILED(device->lpVtbl->CreateTexture2D(device, &td, &tsd, &texture));
 
-	//free used resources for texture loading
-	free(temp);
-	bitmapFrameDecode->lpVtbl->Release(bitmapFrameDecode);
-	bitmapDecoder->lpVtbl->Release(bitmapDecoder);
-	imagingFactory->lpVtbl->Release(imagingFactory);
+	DXFUNCTIONFAILED(device->lpVtbl->CreateTexture2D(device, &td, &tsd, &texture));
 
 	//create a shader resource for the texture
 	D3D11_SHADER_RESOURCE_VIEW_DESC rvd = {0};
@@ -387,18 +402,23 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 
 	DXFUNCTIONFAILED(device->lpVtbl->CreateSamplerState(device, &samplerDesc, &samplerState));
 
+	//free atlas bitmap
+	free(textureAtlasBitmap);
+
 	deviceContext->lpVtbl->PSSetSamplers(deviceContext, 0, 1, &samplerState);
 	deviceContext->lpVtbl->PSSetShaderResources(deviceContext, 0, 1, &shaderResourceView);
+
+	//set primitive topology
+	deviceContext->lpVtbl->IASetPrimitiveTopology(deviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	//get updated swap chain descriptor
 	DXFUNCTIONFAILED(swapchain->lpVtbl->GetDesc(swapchain, &sd));
 
+	CreateRenderTargetFromSwapChain();
 	SetDepthStateAndCreateDepthTexture();
 	CalculatePerspectiveAndSetViewport();
-	CreateRenderTargetFromSwapChain();
 
-	//set primitive topology
-	deviceContext->lpVtbl->IASetPrimitiveTopology(deviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 
 	//create vertex shader
 	ID3DBlob* vertexShaderBlob = NULL;
@@ -406,11 +426,12 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	DXFUNCTIONFAILED(device->lpVtbl->CreateVertexShader(device, vertexShaderBlob->lpVtbl->GetBufferPointer(vertexShaderBlob), vertexShaderBlob->lpVtbl->GetBufferSize(vertexShaderBlob), NULL, &vertexShader));
 
 	//create and bind input layout
-	D3D11_INPUT_ELEMENT_DESC ied[] = {
+	const D3D11_INPUT_ELEMENT_DESC ied[] = {
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
 		{"TexCoord", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
 	};
 	DXFUNCTIONFAILED(device->lpVtbl->CreateInputLayout(device, &ied, 2, vertexShaderBlob->lpVtbl->GetBufferPointer(vertexShaderBlob), vertexShaderBlob->lpVtbl->GetBufferSize(vertexShaderBlob), &inputLayout));
+
 	deviceContext->lpVtbl->IASetInputLayout(deviceContext, inputLayout);
 
 	//create buffer for matrixes
@@ -441,23 +462,27 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	deviceContext->lpVtbl->VSSetShader(deviceContext, vertexShader, NULL, 0);
 	deviceContext->lpVtbl->PSSetShader(deviceContext, pixelShader, NULL, 0);
 
-	//D3D11_RASTERIZER_DESC rast = { 0 };
-	//rast.CullMode = D3D11_CULL_NONE;
-	//rast.DepthClipEnable = true;
-	//rast.FillMode = D3D11_FILL_SOLID;
-	
-	//ID3D11RasterizerState* rastState;
-	//device->lpVtbl->CreateRasterizerState(device, &rast, &rastState);
-	//deviceContext->lpVtbl->RSSetState(deviceContext, rastState);
-
 	LogInfo(L"pipeline set");
+
+#ifdef _DEBUG
+	getDxgiDebug()->lpVtbl->ReportLiveObjects(getDxgiDebug(), DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_DETAIL);
+#endif
+
+	settingUp = false;
+}
+
+bool DxsettingUp()
+{
+	return settingUp;
 }
 
 
-void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
+ID3D11Buffer* createVertexBuffer(vertex* vertexArray, int sizeInBytes)
 {
 	HRESULT hr;
 	WCHAR* msg;
+
+	ID3D11Buffer* vertexBuffer;
 
 	D3D11_BUFFER_DESC bd = { 0 };
 	bd.ByteWidth = sizeInBytes;
@@ -465,21 +490,21 @@ void createVertexBufferAndAppendToList(vertex* vertexArray, int sizeInBytes)
 	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bd.CPUAccessFlags = 0;
 	bd.MiscFlags = 0;
-	bd.StructureByteStride = sizeof(vec3);
+	bd.StructureByteStride = sizeof(vertex);
 
 	D3D11_SUBRESOURCE_DATA sd = { 0 };
 	sd.pSysMem = vertexArray;
-	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &vertexBuffers[0]));
+	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &vertexBuffer));
 
-	//bind vertex buffer
-	deviceContext->lpVtbl->IASetVertexBuffers(deviceContext, 0, 1, &vertexBuffers, &VertexSizeInBytes, &offset);
+	return vertexBuffer;
 }
 
-int numberOfIndexes = 0;
-void createIndexDataBuffer(void* indexArray, int sizeInBytes)
+ID3D11Buffer* createIndexDataBuffer(int* indexArray, int sizeInBytes)
 {
 	HRESULT hr;
 	WCHAR* msg;
+
+	ID3D11Buffer* indexBuffer;
 
 	D3D11_BUFFER_DESC bd = { 0 };
 	bd.ByteWidth = sizeInBytes;
@@ -491,14 +516,10 @@ void createIndexDataBuffer(void* indexArray, int sizeInBytes)
 
 	D3D11_SUBRESOURCE_DATA sd = { 0 };
 	sd.pSysMem = indexArray;
-	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &IndexBuffer));
+	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &bd, &sd, &indexBuffer));
 
-	//bind index buffer
-	deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-	numberOfIndexes = sizeInBytes / sizeof(int);
+	return indexBuffer;
 }
-
 
 void DestroyDX3D11DeviceForWindow()
 {
@@ -524,21 +545,6 @@ void DestroyDX3D11DeviceForWindow()
 	{
 		renderTargetView->lpVtbl->Release(renderTargetView);
 		renderTargetView = NULL;
-	}
-
-	for (size_t i = 0; i < 32; i++)
-	{
-		if (vertexBuffers[i])
-		{
-			vertexBuffers[i]->lpVtbl->Release(vertexBuffers[i]);
-			vertexBuffers[i] = NULL;
-		}
-	}
-
-	if (IndexBuffer)
-	{
-		IndexBuffer->lpVtbl->Release(IndexBuffer);
-		IndexBuffer = NULL;
 	}
 
 	if (vertexShader)
@@ -595,28 +601,38 @@ void DestroyDX3D11DeviceForWindow()
 		depthTexture->lpVtbl->Release(depthTexture);
 		depthTexture = NULL;
 	}
+	if (dxgiFactory)
+	{
+		dxgiFactory->lpVtbl->Release(dxgiFactory);
+		dxgiFactory = NULL;
+	}
+	if (thread)
+	{
+		thread->lpVtbl->Release(thread);
+		thread = NULL;
+	}
 }
 
-float angle = 0;
-static void updateMatrix()
+static void updateTransformMatrix(vec3 pos)
 {	
-	D3D11_MAPPED_SUBRESOURCE map = {0};
-
 	//calculate a transform matrixes
 	glm_mat4_identity(matrixBuffer.transformationMatrix);
-
-	vec3 translation = { 0.0f, 0.0f, 0.0f };
-	glm_translate(matrixBuffer.transformationMatrix, translation);
-
-	//angle += 0.1;
-	//float angleRadians = glm_rad(0);
-	//vec3 rotationAxis = { 0.0f, 1.0f, 0.0f };
-	//glm_rotate(matrixBuffer.transformationMatrix, angleRadians, rotationAxis);
-
-	vec3 scale = { 1.0f, 1.0f, 1.0f };
-	//glm_scale(matrixBuffer.transformationMatrix, scale);
-
+	glm_translate(matrixBuffer.transformationMatrix, pos);
 	glm_mat4_transpose(matrixBuffer.transformationMatrix);
+
+	HRESULT hr;
+	WCHAR* msg;
+	D3D11_MAPPED_SUBRESOURCE map = { 0 };
+
+	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, DXMatrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map));
+	memcpy(map.pData, &matrixBuffer, sizeof(MatrixBuffers));
+	deviceContext->lpVtbl->Unmap(deviceContext, DXMatrixBuffer, 0);
+}
+
+static void updateViewMatrix()
+{
+	HRESULT hr;
+	WCHAR* msg;
 
 	//calculate view matrix
 	vec3 cameraPosition; // Camera position in world space
@@ -627,39 +643,50 @@ static void updateMatrix()
 	glm_lookat(cameraPosition, cameraTarget, upVector, matrixBuffer.viewMatrix);
 	glm_mat4_transpose(matrixBuffer.viewMatrix);
 
-	HRESULT hr;
-	WCHAR* msg;
+	D3D11_MAPPED_SUBRESOURCE map = { 0 };
 	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, DXMatrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map));
 	memcpy(map.pData, &matrixBuffer, sizeof(MatrixBuffers));
 	deviceContext->lpVtbl->Unmap(deviceContext, DXMatrixBuffer, 0);
 }
 
+void DrawMesh(ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, int indexBufferElements, vec3 pos)
+{
+		deviceContext->lpVtbl->IASetVertexBuffers(deviceContext, 0, 1, &vertexBuffer, &VertexSizeInBytes, &offset);
+		deviceContext->lpVtbl->IASetIndexBuffer(deviceContext, indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+		updateTransformMatrix(pos);
+
+		deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, depthStencilView);
+		deviceContext->lpVtbl->DrawIndexed(deviceContext, indexBufferElements, 0, 0);
+}
+
 void EndFrame()
 {
-	updateMatrix();
-
-	//set render target view
-	deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, depthStencilView);
-
-	float colour[4] = {0.0f, 0.7f, 1.0f, 1.0f};
-	deviceContext->lpVtbl->ClearDepthStencilView(deviceContext, depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	deviceContext->lpVtbl->ClearRenderTargetView(deviceContext,renderTargetView, colour);
-
-	deviceContext->lpVtbl->DrawIndexed(deviceContext, numberOfIndexes, 0, 0);
-
 	HRESULT hr;
 	WCHAR* msg;
-	if (FAILED(hr = swapchain->lpVtbl->Present(swapchain, 1u, 0u)))
+
+	updateViewMatrix();
+	float colour[4] = {0.0f, 0.7f, 1.0f, 1.0f};
+
+	if (render)
 	{
-		if (hr == DXGI_ERROR_DEVICE_REMOVED)
+		deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 4u, &renderTargetView, depthStencilView);
+		
+		if (FAILED(hr = swapchain->lpVtbl->Present(swapchain, 1u, 0u)))
 		{
-			LOGDXMESSAGES();
-			LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, device->lpVtbl->GetDeviceRemovedReason(device));
-		}
-		else
-		{
-			LOGDXMESSAGES();
-			LOGWIN32EXCEPTION(RC_DX3D11_EXPCEPTION, hr);
+			if (hr == DXGI_ERROR_DEVICE_REMOVED)
+			{
+				LOGDXMESSAGES();
+				LOGWIN32EXCEPTION(device->lpVtbl->GetDeviceRemovedReason(device));
+			}
+			else
+			{
+				LOGDXMESSAGES();
+				LOGWIN32EXCEPTION(hr);
+			}
 		}
 	}
+	deviceContext->lpVtbl->ClearDepthStencilView(deviceContext, depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	deviceContext->lpVtbl->ClearRenderTargetView(deviceContext, renderTargetView, colour);
+	switching = false;
 }

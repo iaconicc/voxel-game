@@ -12,7 +12,7 @@ bool AutoRepeatEnabled = false;
 #define KEYEVENTSSIZE 128
 #define CHARACTERFIFOSIZE 128
 
-BitField* keystates = NULL;
+BitField keystates;
 FIFO* keyevents = NULL;
 FIFO* characterFifo = NULL;
 
@@ -37,7 +37,7 @@ bool InitKeyboardModuleAndGetOwnership(keyboardOps** ops)
 	InitFIFO(&characterFifo, CHARACTERFIFOSIZE, sizeof(WCHAR));
 	InitFIFO(&keyevents, KEYEVENTSSIZE, sizeof(KeyEvent));
 
-	if (!keystates)
+	if (!InitBitField(&keystates, KEYSTATESSIZE))
 	{
 		if (characterFifo)
 			DestroyFIFO(&characterFifo);
@@ -45,7 +45,7 @@ bool InitKeyboardModuleAndGetOwnership(keyboardOps** ops)
 		if (keyevents)
 			DestroyFIFO(&keyevents);
 
-		LogException(RC_KBD_EXCEPTION, L"An exception occured while creating keystates bitmap");
+		LogException(L"An exception occured while creating keystates bitmap");
 		return false;
 	}
 
@@ -56,7 +56,7 @@ bool InitKeyboardModuleAndGetOwnership(keyboardOps** ops)
 		if (keyevents)
 			DestroyFIFO(&keyevents);
 
-		LogException(RC_KBD_EXCEPTION, L"An exception occured while creating character buffer");
+		LogException(L"An exception occured while creating character buffer");
 		return false;
 	}
 
@@ -65,7 +65,7 @@ bool InitKeyboardModuleAndGetOwnership(keyboardOps** ops)
 		DestroyBitField(&keystates);
 		DestroyFIFO(&characterFifo);
 
-		LogException(RC_KBD_EXCEPTION, L"An exception occured while creating key events buffer");
+		LogException(L"An exception occured while creating key events buffer");
 		return false;
 	}
 
