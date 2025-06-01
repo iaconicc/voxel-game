@@ -13,7 +13,7 @@
 HWND g_hwnd;
 HANDLE worldThread;
 
-bool running = false;
+volatile bool running = false;
 
 static void DoFrameLogic()
 {
@@ -48,7 +48,7 @@ static void DoFrameLogic()
 }
 
 static void WINAPI FPSThread(){
-	while (ProgramIsRunning()){
+	while (running){
 		Sleep(1000);
 		WCHAR formatedTitle[200];
 		StringCchPrintfW(formatedTitle, 200, L"Voxel-Game fps: %.2f", getFrameRate());

@@ -29,5 +29,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 	 StopLogger();
 	 LogInfo(L"Logger stopped. Exiting application.");
 
-	 return returnStatus;
+	 ExitProcess(returnStatus);
+	 //return returnStatus;
 }

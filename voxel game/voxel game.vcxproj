@@ -119,6 +119,7 @@
       <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies);cglm.lib;cglm.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)/libs/</AdditionalLibraryDirectories>
       <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

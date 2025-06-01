@@ -190,7 +190,7 @@ void WINAPI generateChunkMesh(void* lparam)
 	CRITICAL_SECTION* mutex = chunkGen->criticalSection;
 	struct hashmap* chunkHashmap = chunkGen->hash;
 	
-	Chunk* chunk = malloc(sizeof(Chunk));
+	Chunk* chunk = calloc(1, sizeof(Chunk));
 	if (!chunk){
 		return -1;
 	}
