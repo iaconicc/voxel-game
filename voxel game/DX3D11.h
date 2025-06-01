@@ -31,3 +31,4 @@ void setactive();
 void DestroyDX3D11DeviceForWindow();
 void EndFrame();
 float getFrameDelta();
+float getFrameRate();

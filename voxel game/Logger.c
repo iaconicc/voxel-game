@@ -16,8 +16,7 @@ IDXGIDebug* getDxgiDebug(){
 	return debug;
 }
 
-void setupInfoManager()  
-{  
+void setupInfoManager(){  
     // Function definition to load from DLL  
     typedef HRESULT (WINAPI* DXGIGetDebugInterface)(REFIID, void**);  
 
@@ -50,8 +49,7 @@ void setupInfoManager()
 	LogDebug(L"initialised DX info manager");
 }
 
-errno_t StartLogger()  
-{  
+errno_t StartLogger(){  
 	if (_setmode(_fileno(stdout), _O_U16TEXT) == -1) {
 		fwprintf(stderr, L"Failed to set mode for stdout. Falling back to default mode.\n");
 		// Optionally, use _O_TEXT or _O_BINARY as a fallback

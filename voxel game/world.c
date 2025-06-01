@@ -29,9 +29,9 @@ static WINAPI WorldThread() {
 			vec3 currentPlayerPos;
 			getCameraTargetAndPosition(&currentPlayerPos, NULL);
 			if (currentPlayerPos[0] != lastPlayerPos[0] || currentPlayerPos[1] != lastPlayerPos[1] || currentPlayerPos[2] != lastPlayerPos[2]){
-				for (int x = 0; x < 32; x++)
+				for (int x = 0; x < 16; x++)
 				{
-					for (int z = 0; z < 32; z++)
+					for (int z = 0; z < 16; z++)
 					{
 						chunk.pos.x = x;
 						chunk.pos.z = z;

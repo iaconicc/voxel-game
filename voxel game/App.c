@@ -5,6 +5,7 @@
 #include "chunk.h"
 #include "Camera.h"
 #include "world.h"
+#include <strsafe.h>
 
 #define MODULE L"APP"
 #include "Logger.h"
@@ -46,6 +47,16 @@ static void DoFrameLogic()
 		toggleFullScreen();
 }
 
+static void WINAPI FPSThread(){
+	while (ProgramIsRunning()){
+		Sleep(1000);
+		WCHAR formatedTitle[200];
+		StringCchPrintfW(formatedTitle, 200, L"Voxel-Game fps: %.2f", getFrameRate());
+		SetWindowTitle(formatedTitle);
+	}
+	return 0;
+}
+
 int ApplicationStartAndRun(int width, int height, WCHAR* name)
 {
 	//create a window
@@ -60,6 +71,7 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 
 	initialiseCamera();
 	worldThread = StartWorld();
+	CreateThread(0, 0, FPSThread, NULL, 0, NULL);
 
 	//start application loop
 	LogInfo(L"Starting App loop...");
@@ -77,10 +89,10 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 		DoFrameLogic();
 		DrawChunks();
 		EndFrame();
+
 #ifdef _DEBUG
 		logDXMessages();
 #endif // _DEBUG
-
 	}
 
 }

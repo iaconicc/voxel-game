@@ -12,6 +12,8 @@
 LRESULT CALLBACK Direct3DWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
 const WCHAR* className = L"VoxelGameClass";
 HINSTANCE wndInstance;
+HWND hwnd;
+
 
 int width = 0;
 int height = 0;
@@ -58,7 +60,7 @@ HWND CreateWindowInstance(int width, int height, WCHAR* name)
 	wr.bottom = height + wr.top;
 	AdjustWindowRect(&wr, WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU | WS_MAXIMIZEBOX | WS_SIZEBOX, FALSE);
 	//creation of window
-	HWND hwnd = CreateWindowEx(
+	hwnd = CreateWindowEx(
 		0,
 		className,
 		name,
@@ -283,4 +285,8 @@ int ProcessMessages()
 void CleanupWindow()
 {
 	UnregisterClass(className, wndInstance);
+}
+
+void SetWindowTitle(WCHAR* string){
+	SetWindowText(hwnd, string);
 }
