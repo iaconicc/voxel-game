@@ -19,8 +19,42 @@ CRITICAL_SECTION chunkmapMutex;
 Chunk chunk;
 bool drawing = false;
 
-#define WORLDSIZEINCHUNKS 5
+#define ViewDistance 2
+#define WORLDSIZEINCHUNKS 32
 #define WORLDSIZEINBLOCKS WORLDSIZEINCHUNKS * CHUNK_SIZE
+
+inline static void GetChunkPosFromAbsolutePos(vec3 pos, int* x, int* z)
+{
+	*x =(int) floorf(pos[0]/ CHUNK_SIZE);
+	*z =(int) floorf(pos[2] / CHUNK_SIZE);
+}
+
+static bool ChunkIsInWorld(int x, int z) {
+	return x >= 0 && x < WORLDSIZEINCHUNKS && z >= 0 && z < WORLDSIZEINCHUNKS;
+}
+
+static void CheckViewDistance(vec3 pos){
+	int Chunkx = 0, Chunkz = 0;
+	GetChunkPosFromAbsolutePos(pos, &Chunkx, &Chunkz);
+
+	for (int x = Chunkx - ViewDistance; x < Chunkx + ViewDistance; x++){
+		for (int z = Chunkz - ViewDistance; z < Chunkz + ViewDistance; z++){
+			if (ChunkIsInWorld(x, z)){
+				chunk.pos.x = x;
+				chunk.pos.z = z;
+				Chunk* existingChunk;
+				if (!(existingChunk = hashmap_get(chunkHashmap, &chunk))){
+					chunkGenData* genData = malloc(sizeof(chunkGenData));
+					genData->criticalSection = &chunkmapMutex;
+					genData->hash = chunkHashmap;
+					genData->x = x;
+					genData->z = z;
+					CreateThread(0, 0, generateChunkMesh, genData, 0, NULL);
+				}
+			}
+		}
+	}
+}
 
 static WINAPI WorldThread() {
 
@@ -30,27 +64,21 @@ static WINAPI WorldThread() {
 		{
 			vec3 currentPlayerPos;
 			getCameraTargetAndPosition(&currentPlayerPos, NULL);
-			if (currentPlayerPos[0] != lastPlayerPos[0] || currentPlayerPos[1] != lastPlayerPos[1] || currentPlayerPos[2] != lastPlayerPos[2]){
-				for (int x = 0; x < WORLDSIZEINCHUNKS; x++)
-				{
-					for (int z = 0; z < WORLDSIZEINCHUNKS; z++)
-					{
-						chunk.pos.x = x;
-						chunk.pos.z = z;
-						Chunk* existingChunk = hashmap_get(chunkHashmap, &chunk);
-						if (!existingChunk)
-						{
-							chunkGenData* genData =  malloc(sizeof(chunkGenData));
-							genData->criticalSection = &chunkmapMutex;
-							genData->hash = chunkHashmap;
-							genData->x = x;
-							genData->z = z;
-							CreateThread(0, 0, generateChunkMesh, genData, 0, NULL);
-						}
-					}
-				}
-				glm_vec3_copy(currentPlayerPos, lastPlayerPos);
+			
+			int LastChunkx = 0;
+			int LastChunkz = 0;
+
+			int Chunkx = 0;
+			int Chunkz = 0;
+
+			GetChunkPosFromAbsolutePos(lastPlayerPos, &LastChunkx, &LastChunkz);
+			GetChunkPosFromAbsolutePos(currentPlayerPos, &Chunkx, &Chunkz);
+			
+			if (!(Chunkx == LastChunkx && Chunkz == LastChunkz)){
+				CheckViewDistance(currentPlayerPos);
 			}
+
+			glm_ivec3_copy(currentPlayerPos, lastPlayerPos);
 		}
 	}
 
@@ -58,22 +86,10 @@ static WINAPI WorldThread() {
 	return 0;
 }
 
-static bool ChunkIsInWorld(int x, int z) {
-	if (x > 0 && x < WORLDSIZEINCHUNKS && z > 0 && z < WORLDSIZEINCHUNKS) {
-		return true;
-	}
-	else {
-		return false;
-	}
-}
-
 static bool BlockIsInWorld(int x, int y, int z) {
-	if (x >= 0 && x < WORLDSIZEINBLOCKS && y >= 0 && y < CHUNK_SIZEV && z >= 0 && z < WORLDSIZEINBLOCKS) {
-		return true;
-	}
-	else {
-		return false;
-	}
+	return x >= 0 && x < WORLDSIZEINBLOCKS &&
+		y >= 0 && y < CHUNK_SIZEV &&
+		z >= 0 && z < WORLDSIZEINBLOCKS;
 }
 
 void GetBlock(Block* block,int x, int y, int z){
@@ -134,11 +150,11 @@ HANDLE StartWorld()
 {
 	InitializeCriticalSection(&chunkmapMutex);
 
-	getCameraTargetAndPosition(&lastPlayerPos, NULL);
-	//ensure that chunks are generated at least once
-	lastPlayerPos[0] = lastPlayerPos[0]+1;
-
 	chunkHashmap = hashmap_new(sizeof(Chunk), 1024, 0, 0, chunkHash, chunkCompare, chunkFree, NULL);
+
+	SetCamPos((vec3){(float)WORLDSIZEINBLOCKS /2, 33, (float)WORLDSIZEINBLOCKS / 2});
+	getCameraTargetAndPosition(&lastPlayerPos, NULL);
+	CheckViewDistance(lastPlayerPos);
 
 	DWORD id;
 	HANDLE handle;
@@ -157,7 +173,7 @@ void DrawChunks()
 		EnterCriticalSection(&chunkmapMutex);
 		while (hashmap_iter(chunkHashmap, &i, &chunk)) {
 			if (chunk->chunkIsReady) {
-				vec3 pos = { ((float)(chunk->pos.x)) * 16, 0.0f, ((float)(chunk->pos.z)) * 16 };
+				vec3 pos = { ((float)(chunk->pos.x)) * (float) CHUNK_SIZE, 0.0f, ((float)(chunk->pos.z)) * (float) CHUNK_SIZE};
 				DrawMesh(chunk->mesh.vertexBuffer, chunk->mesh.indexBuffer, chunk->mesh.IndexListSize, pos);
 			}
 		};

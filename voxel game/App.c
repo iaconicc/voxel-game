@@ -20,16 +20,16 @@ static void DoFrameLogic()
 	float delta = getFrameDelta();
 
 	if(keyIsPressed('W'))
-		MoveCameraForward(4.317 * delta);
+		MoveCameraForward(6.917 * delta);
 
 	if (keyIsPressed('S'))
-		MoveCameraBack(4.317 * delta);
+		MoveCameraBack(6.917 * delta);
 
 	if (keyIsPressed('A'))
-		StrafeCameraLeft(4.317 * delta);
+		StrafeCameraLeft(6.917 * delta);
 
 	if (keyIsPressed('D'))
-		StrafeCameraRight(4.317 * delta);
+		StrafeCameraRight(6.917 * delta);
 
 	if (keyIsPressed(VK_UP))
 		RotateCam(0, 25.0 * delta);
@@ -50,8 +50,10 @@ static void DoFrameLogic()
 static void WINAPI FPSThread(){
 	while (running){
 		Sleep(1000);
+		vec3 pos;
+		getCameraTargetAndPosition(&pos, NULL);
 		WCHAR formatedTitle[200];
-		StringCchPrintfW(formatedTitle, 200, L"Voxel-Game fps: %.2f", getFrameRate());
+		StringCchPrintfW(formatedTitle, 200, L"Voxel-Game fps: %u, %u", (int) floorf(pos[0]/16), (int) floorf(pos[2]/16));
 		SetWindowTitle(formatedTitle);
 	}
 	return 0;
