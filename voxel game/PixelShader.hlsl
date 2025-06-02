@@ -12,7 +12,7 @@ float calculateExpfogFactor(float3 worldPos)
 {
     float CameraToPixelDist = length(worldPos - cameraPos);
     float DistRatio = 4.0 * CameraToPixelDist / FogEnd;
-    float fogFactor = exp2(-DistRatio * FogDesity);
+    float fogFactor = exp(-DistRatio * FogDesity);
     return fogFactor;
 }
 
