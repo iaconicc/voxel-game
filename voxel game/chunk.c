@@ -201,7 +201,6 @@ void WINAPI generateChunkMesh(void* lparam)
 		return -1;
 	}
 
-	chunk->chunkIsReady = false;
 	chunk->mesh.IndexListSize = 0;
 	int vertexListSize = 0;
 
@@ -261,8 +260,6 @@ void WINAPI generateChunkMesh(void* lparam)
 
 	chunk->mesh.indexBuffer = createIndexDataBuffer(indexList, (chunk->mesh.IndexListSize*sizeof(int)));
 	chunk->mesh.vertexBuffer = createVertexBuffer(vertexList, (vertexListSize * sizeof(vertex)));
-
-	chunk->chunkIsReady = true;
 
 	EnterCriticalSection(mutex);
 	hashmap_set(chunkHashmap, chunk);

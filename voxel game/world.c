@@ -172,10 +172,8 @@ void DrawChunks()
 		
 		EnterCriticalSection(&chunkmapMutex);
 		while (hashmap_iter(chunkHashmap, &i, &chunk)) {
-			if (chunk->chunkIsReady) {
 				vec3 pos = { ((float)(chunk->pos.x)) * (float) CHUNK_SIZE, 0.0f, ((float)(chunk->pos.z)) * (float) CHUNK_SIZE};
 				DrawMesh(chunk->mesh.vertexBuffer, chunk->mesh.indexBuffer, chunk->mesh.IndexListSize, pos);
-			}
 		};
 		LeaveCriticalSection(&chunkmapMutex);
 	}

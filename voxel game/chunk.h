@@ -29,7 +29,7 @@ typedef struct {
 	Block blocksState[CHUNK_SIZE][CHUNK_SIZEV][CHUNK_SIZE];
 	chunkMesh mesh;
 	chunkPos pos;
-	bool chunkIsReady;
+	int activeID;
 }Chunk;
 
 void WINAPI generateChunkMesh(void* lparam);
