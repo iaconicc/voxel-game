@@ -20,11 +20,20 @@ HWND hwnd;
 int windowedwidth;
 int windowedheight;
 
+float colour[4] = { 0.0f, 0.7f, 1.0f, 1.0f };
+
 typedef struct {
 	mat4 transformationMatrix;
 	mat4 projectionMatrix;
 	mat4 viewMatrix;
 }MatrixBuffers;
+
+typedef struct {
+	vec4 Fogcolour;
+	vec3 CamPos;
+	float FogDensity;
+	float FogEnd;
+}FogConstants;
 
 ID3D11Multithread* thread = NULL;
 
@@ -42,7 +51,13 @@ MatrixBuffers matrixBuffer;
 ID3D11Buffer* DXMatrixBuffer = NULL;
 
 //fog constants
-
+FogConstants fog = {
+	{0.0f, 0.0f, 0.0f, 0.0f},
+	{0.0f, 0.0f, 0.0f},
+	0.25f,
+	250.0f,
+};
+ID3D11Buffer* FogConstantBuffer = NULL;
 
 ID3D11Texture2D* texture = NULL;
 ID3D11ShaderResourceView* shaderResourceView = NULL;
@@ -456,7 +471,26 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	msd.pSysMem = &matrixBuffer;
 	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &mbd, &msd, &DXMatrixBuffer));
 
+	//create buffer for fog constants
+	D3D11_BUFFER_DESC fbd = { 0 };
+	fbd.ByteWidth = sizeof(FogConstants);
+	fbd.Usage = D3D11_USAGE_DYNAMIC;
+	fbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	fbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	fbd.MiscFlags = 0;
+	fbd.StructureByteStride = 0;
+
+	fog.Fogcolour[0] = colour[0];
+	fog.Fogcolour[1] = colour[1];
+	fog.Fogcolour[2] = colour[2];
+	fog.Fogcolour[3] = colour[3];
+
+	D3D11_SUBRESOURCE_DATA fsd = { 0 };
+	fsd.pSysMem = &fog;
+	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &fbd, &fsd, &FogConstantBuffer));
+
 	deviceContext->lpVtbl->VSSetConstantBuffers(deviceContext, 0, 1, &DXMatrixBuffer);
+	deviceContext->lpVtbl->PSSetConstantBuffers(deviceContext, 0, 1, &FogConstantBuffer);
 
 	//create pixel shader
 	ID3DBlob* pixelShaderBlob = NULL;
@@ -621,6 +655,11 @@ void DestroyDX3D11DeviceForWindow()
 		thread->lpVtbl->Release(thread);
 		thread = NULL;
 	}
+	if (FogConstantBuffer)
+	{
+		FogConstantBuffer->lpVtbl->Release(FogConstantBuffer);
+		FogConstantBuffer = NULL;
+	}
 }
 
 static void updateTransformMatrix(vec3 pos)
@@ -650,13 +689,18 @@ static void updateViewMatrix()
 	vec3 upVector = { 0.0f, 1.0f, 0.0f };       // Up direction
 	getCameraTargetAndPosition(&cameraPosition, &cameraTarget);
 
+	glm_vec3_copy(cameraPosition, fog.CamPos);
 	glm_lookat(cameraPosition, cameraTarget, upVector, matrixBuffer.viewMatrix);
 	glm_mat4_transpose(matrixBuffer.viewMatrix);
 
-	D3D11_MAPPED_SUBRESOURCE map = { 0 };
-	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, DXMatrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map));
-	memcpy(map.pData, &matrixBuffer, sizeof(MatrixBuffers));
+	D3D11_MAPPED_SUBRESOURCE MatrixMap = { 0 };
+	D3D11_MAPPED_SUBRESOURCE FogMap = { 0 };
+	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, DXMatrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MatrixMap));
+	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, FogConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &FogMap));
+	memcpy(MatrixMap.pData, &matrixBuffer, sizeof(MatrixBuffers));
+	memcpy(FogMap.pData, &fog, sizeof(FogConstants));
 	deviceContext->lpVtbl->Unmap(deviceContext, DXMatrixBuffer, 0);
+	deviceContext->lpVtbl->Unmap(deviceContext, FogConstantBuffer, 0);
 }
 
 void DrawMesh(ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, int indexBufferElements, vec3 pos)
@@ -672,7 +716,6 @@ void DrawMesh(ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, int indexBu
 
 float deltaTime = 0;
 float frameRate = 0;
-float colour[4] = { 0.0f, 0.7f, 1.0f, 1.0f };
 void EndFrame()
 {
 	HRESULT hr;
