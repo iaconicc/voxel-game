@@ -6,6 +6,7 @@
 #include "App.h"
 #include "hashmap.h"
 #include <synchapi.h>
+#include "FIFO.h"
 
 #define MODULE L"chunk"
 #include "Logger.h"
@@ -238,7 +239,7 @@ void WINAPI generateChunkMesh(void* lparam)
 	int* indexList = calloc(chunk->mesh.IndexListSize,sizeof(int));
 	vertex* vertexList = calloc(vertexListSize,sizeof(vertex));
 
-	//LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexListSize, ((sizeof(vertex) * vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000));
+	LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexListSize, ((sizeof(vertex) * vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000));
 
 	int currentVertexindex = 0;
 	int currentIndexListindex = 0;
@@ -265,6 +266,7 @@ void WINAPI generateChunkMesh(void* lparam)
 	hashmap_set(chunkHashmap, chunk);
 	LeaveCriticalSection(mutex);
 
+	PushElement(&chunkGen->ThreadQueue, &chunkGen->ThreadID);
 	free(indexList);
 	free(vertexList);
 	free(chunk);

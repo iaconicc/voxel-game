@@ -4,8 +4,6 @@
 #include <processthreadsapi.h>
 #include "hashmap.h"
 #include "DX3D11.h"
-#include <sys/timeb.h>
-#include <time.h>
 
 #define MODULE L"WORLD"
 #include "Logger.h"
@@ -19,9 +17,23 @@ CRITICAL_SECTION chunkmapMutex;
 Chunk chunk;
 bool drawing = false;
 
-#define ViewDistance 2
-#define WORLDSIZEINCHUNKS 32
+#define MAXTHREADS 100
+#define MAXJOBS 1024
+
+FIFO* JobQueue = NULL;
+FIFO* AvailableThread = NULL;
+
+int ThreadsTaken = 0;
+
+#define ViewDistance 32
+#define WORLDSIZEINCHUNKS 128
 #define WORLDSIZEINBLOCKS WORLDSIZEINCHUNKS * CHUNK_SIZE
+
+typedef struct {
+	chunkGenData* ChunkGenData;
+	bool delete;
+}ChunkJob;
+
 
 inline static void GetChunkPosFromAbsolutePos(vec3 pos, int* x, int* z)
 {
@@ -44,19 +56,38 @@ static void CheckViewDistance(vec3 pos){
 				chunk.pos.z = z;
 				Chunk* existingChunk;
 				if (!(existingChunk = hashmap_get(chunkHashmap, &chunk))){
-					chunkGenData* genData = malloc(sizeof(chunkGenData));
+					chunkGenData* genData = calloc(1,sizeof(chunkGenData));
 					genData->criticalSection = &chunkmapMutex;
 					genData->hash = chunkHashmap;
+					genData->ThreadQueue = AvailableThread;
 					genData->x = x;
 					genData->z = z;
-					CreateThread(0, 0, generateChunkMesh, genData, 0, NULL);
+					ChunkJob job = {genData};
+					job.delete = false;
+					PushElement(&JobQueue, &job);
 				}
 			}
 		}
 	}
 }
 
+static WINAPI ChunkJobThread(){
+	while (ProgramIsRunning()){
+		if (!isFIFOEmpty(&JobQueue)){
+			if(!isFIFOEmpty(&AvailableThread)){
+				int* Thread =(int*) PopElement(&AvailableThread);
+				ChunkJob* chunkJob =(ChunkJob*) PopElement(&JobQueue);
+				chunkJob->ChunkGenData->ThreadID = *Thread;
+				CreateThread(0, 0, generateChunkMesh, chunkJob->ChunkGenData, 0, NULL);
+			}
+		}
+	}
+	return 0;
+}
+
 static WINAPI WorldThread() {
+
+	CreateThread(0, 0, ChunkJobThread, NULL, 0, NULL);
 
 	while (ProgramIsRunning())
 	{
@@ -82,6 +113,8 @@ static WINAPI WorldThread() {
 		}
 	}
 
+	DestroyFIFO(&JobQueue);
+	DestroyFIFO(&AvailableThread);
 	hashmap_free(chunkHashmap);
 	return 0;
 }
@@ -149,8 +182,14 @@ CRITICAL_SECTION* getChunkmapMutex()
 HANDLE StartWorld()
 {
 	InitializeCriticalSection(&chunkmapMutex);
+	InitFIFO(&JobQueue, MAXJOBS, sizeof(ChunkJob));
+	InitFIFO(&AvailableThread, MAXTHREADS, sizeof(int));
+	
+	for (int i = 0; i < MAXTHREADS; i++){
+		PushElement(&AvailableThread, &i);
+	}
 
-	chunkHashmap = hashmap_new(sizeof(Chunk), 1024, 0, 0, chunkHash, chunkCompare, chunkFree, NULL);
+	chunkHashmap = hashmap_new(sizeof(Chunk), 16384, 0, 0, chunkHash, chunkCompare, chunkFree, NULL);
 
 	SetCamPos((vec3){(float)WORLDSIZEINBLOCKS /2, 33, (float)WORLDSIZEINBLOCKS / 2});
 	getCameraTargetAndPosition(&lastPlayerPos, NULL);

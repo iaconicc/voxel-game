@@ -53,7 +53,7 @@ static void WINAPI FPSThread(){
 		vec3 pos;
 		getCameraTargetAndPosition(&pos, NULL);
 		WCHAR formatedTitle[200];
-		StringCchPrintfW(formatedTitle, 200, L"Voxel-Game fps: %u, %u", (int) floorf(pos[0]/16), (int) floorf(pos[2]/16));
+		StringCchPrintfW(formatedTitle, 200, L"Voxel-Game fps: %.2f Chunk:%u, %u", getFrameRate(), (int)floorf(pos[0] / 16), (int)floorf(pos[2] / 16));
 		SetWindowTitle(formatedTitle);
 	}
 	return 0;
