@@ -10,12 +10,6 @@ typedef struct {
 	vec2 texPos;
 }vertex;
 
-typedef struct {
-	mat4 transformationMatrix;
-	mat4 projectionMatrix;
-	mat4 viewMatrix;
-}MatrixBuffers;
-
 void UpdateOnResize(int width, int height);
 void toggleFullScreen();
 

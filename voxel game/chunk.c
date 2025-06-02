@@ -80,21 +80,26 @@ const static vec2 uvs270[6][4] = {
 	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}  // east face
 };
 
-#define ISBLOCKSOLID(blockstate) (blockstate & 1)
-#define SetBLOCKSOLID(blockstate) ((blockstate & 1) | 1)
-#define UnsetBLOCKSOLID(blockstate) ((blockstate & 1) & ~1)
-
 static void populateVoxelMap(Chunk* chunk){
-	for (size_t x = (rand() % CHUNK_SIZE); x < CHUNK_SIZE; x++)
+	for (size_t x = 0; x < CHUNK_SIZE; x++)
 	{
-		for (size_t y = (rand() % CHUNK_SIZEV); y < CHUNK_SIZEV; y++)
+		for (size_t y = 0; y < CHUNK_SIZEV; y++)
 		{
-			for (size_t z = (rand() % CHUNK_SIZE); z < CHUNK_SIZE; z++)
+			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
 				chunk->blocksState[x][y][z].blockstate = SetBLOCKSOLID(chunk->blocksState[x][y][z].blockstate);
-				chunk->blocksState[x][y][z].blockID = rand() % 4;
+				GetBlock(&chunk->blocksState[x][y][z], x + (chunk->pos.x * CHUNK_SIZE), y, z + (chunk->pos.z * CHUNK_SIZE));
 			}
 		}
+	}
+}
+
+static bool IsBlockInChunk(int x, int y, int z){
+	if (x < 0 || x > CHUNK_SIZE - 1 || y < 0 || y > CHUNK_SIZEV - 1 || z < 0 || z > CHUNK_SIZE - 1){
+		return false;
+	}
+	else{
+		true;
 	}
 }
 
@@ -104,9 +109,10 @@ static bool checkVoxel(Chunk* chunk,vec3 pos)
 	int y = (int) floorf(pos[1]);
 	int z = (int) floorf(pos[2]);
 
-	if (x < 0 || x > CHUNK_SIZE - 1 || y < 0 || y > CHUNK_SIZEV - 1 || z < 0 || z > CHUNK_SIZE - 1)
-	{
-		return false;
+	if (!IsBlockInChunk(x, y, z)){
+		Block block;
+		GetBlock(&block, x + (chunk->pos.x * CHUNK_SIZE), y, z + chunk->pos.z * CHUNK_SIZE);
+		return ISBLOCKSOLID(block.blockstate);
 	}
 
 	return ISBLOCKSOLID(chunk->blocksState[x][y][z].blockstate);
@@ -264,6 +270,7 @@ void WINAPI generateChunkMesh(void* lparam)
 
 	free(indexList);
 	free(vertexList);
+	free(chunk);
 	free(lparam);
 	return 0;
 }

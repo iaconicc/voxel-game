@@ -5,6 +5,10 @@
 #define CHUNK_SIZE  16
 #define CHUNK_SIZEV 32
 
+#define ISBLOCKSOLID(blockstate) (blockstate & 1)
+#define SetBLOCKSOLID(blockstate) ((blockstate & 1) | 1)
+#define UnsetBLOCKSOLID(blockstate) ((blockstate & 1) & ~1)
+
 typedef struct {
 	uint16_t blockID;
 	uint16_t blockstate;

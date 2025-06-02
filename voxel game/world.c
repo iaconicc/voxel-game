@@ -1,5 +1,4 @@
 #include "world.h"
-#include "chunk.h"
 #include "App.h"
 #include "Camera.h"
 #include <processthreadsapi.h>
@@ -20,6 +19,9 @@ CRITICAL_SECTION chunkmapMutex;
 Chunk chunk;
 bool drawing = false;
 
+#define WORLDSIZEINCHUNKS 16
+#define WORLDSIZEINBLOCKS WORLDSIZEINCHUNKS * CHUNK_SIZE
+
 static WINAPI WorldThread() {
 
 	while (ProgramIsRunning())
@@ -29,9 +31,9 @@ static WINAPI WorldThread() {
 			vec3 currentPlayerPos;
 			getCameraTargetAndPosition(&currentPlayerPos, NULL);
 			if (currentPlayerPos[0] != lastPlayerPos[0] || currentPlayerPos[1] != lastPlayerPos[1] || currentPlayerPos[2] != lastPlayerPos[2]){
-				for (int x = 0; x < 16; x++)
+				for (int x = 0; x < WORLDSIZEINCHUNKS; x++)
 				{
-					for (int z = 0; z < 16; z++)
+					for (int z = 0; z < WORLDSIZEINCHUNKS; z++)
 					{
 						chunk.pos.x = x;
 						chunk.pos.z = z;
@@ -54,6 +56,50 @@ static WINAPI WorldThread() {
 
 	hashmap_free(chunkHashmap);
 	return 0;
+}
+
+static bool ChunkIsInWorld(int x, int z) {
+	if (x > 0 && x < WORLDSIZEINCHUNKS && z > 0 && z < WORLDSIZEINCHUNKS) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+static bool BlockIsInWorld(int x, int y, int z) {
+	if (x >= 0 && x < WORLDSIZEINBLOCKS && y >= 0 && y < CHUNK_SIZEV && z >= 0 && z < WORLDSIZEINBLOCKS) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+void GetBlock(Block* block,int x, int y, int z){
+	if (!BlockIsInWorld(x, y, z)){
+		block->blockstate = UnsetBLOCKSOLID(block->blockstate);
+		return;
+	}else{
+		block->blockstate = SetBLOCKSOLID(block->blockstate);
+	}
+
+	if (y == 0)
+	{
+		block->blockID = 4;
+	}
+	if (y > 0)
+	{
+		block->blockID = 0;
+	}
+	if (y > CHUNK_SIZEV - 5)
+	{
+		block->blockID = 1;
+	}
+	if (y == CHUNK_SIZEV - 1)
+	{
+		block->blockID = 2;
+	}
 }
 
 static uint64_t chunkHash(const void* item, uint64_t seed0, uint64_t seed1) {
@@ -92,7 +138,7 @@ HANDLE StartWorld()
 	//ensure that chunks are generated at least once
 	lastPlayerPos[0] = lastPlayerPos[0]+1;
 
-	chunkHashmap = hashmap_new(sizeof(Chunk), 1089, 0, 0, chunkHash, chunkCompare, chunkFree, NULL);
+	chunkHashmap = hashmap_new(sizeof(Chunk), 1024, 0, 0, chunkHash, chunkCompare, chunkFree, NULL);
 
 	DWORD id;
 	HANDLE handle;

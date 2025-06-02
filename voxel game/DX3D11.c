@@ -20,6 +20,12 @@ HWND hwnd;
 int windowedwidth;
 int windowedheight;
 
+typedef struct {
+	mat4 transformationMatrix;
+	mat4 projectionMatrix;
+	mat4 viewMatrix;
+}MatrixBuffers;
+
 ID3D11Multithread* thread = NULL;
 
 IDXGISwapChain* swapchain = NULL;
@@ -34,6 +40,9 @@ ID3D11DepthStencilView* depthStencilView;
 //constant buffers (matrixes)
 MatrixBuffers matrixBuffer;
 ID3D11Buffer* DXMatrixBuffer = NULL;
+
+//fog constants
+
 
 ID3D11Texture2D* texture = NULL;
 ID3D11ShaderResourceView* shaderResourceView = NULL;
@@ -81,7 +90,7 @@ static void CalculatePerspective(int width, int height)
 	float aspectRatio =(float) width /(float) height;
 	float fov = glm_rad(70.0f);
 	float nearPlane = 0.1f;
-	float farPlane = 100.0f;
+	float farPlane = 1000.0f;
 
 	glm_perspective(fov, aspectRatio, nearPlane, farPlane, matrixBuffer.projectionMatrix);
 	glm_mat4_transpose(matrixBuffer.projectionMatrix);
@@ -689,6 +698,7 @@ void EndFrame()
 		}
 		deviceContext->lpVtbl->ClearDepthStencilView(deviceContext, depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 		deviceContext->lpVtbl->ClearRenderTargetView(deviceContext, renderTargetView, colour);
+		
 	}
 
 	switching = false;
