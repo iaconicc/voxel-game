@@ -394,35 +394,42 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	D3D11_TEXTURE2D_DESC td = {0};
 	td.Width = imageWidth;
 	td.Height = imageHeight;
-	td.MipLevels = 1;
+	td.MipLevels = 0;
 	td.ArraySize = 1;
 	td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	td.SampleDesc.Count = 1;
 	td.SampleDesc.Quality = 0;
 	td.Usage = D3D11_USAGE_DEFAULT;
-	td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	td.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	td.CPUAccessFlags = 0;
-	td.MiscFlags = 0;
+	td.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
 	D3D11_SUBRESOURCE_DATA tsd = {0};
 	tsd.pSysMem = textureAtlasBitmap;
 	tsd.SysMemPitch = 4 * imageWidth;
 
-	DXFUNCTIONFAILED(device->lpVtbl->CreateTexture2D(device, &td, &tsd, &texture));
+	DXFUNCTIONFAILED(device->lpVtbl->CreateTexture2D(device, &td, NULL, &texture));
+
+	deviceContext->lpVtbl->UpdateSubresource(deviceContext, texture, 0u, NULL, textureAtlasBitmap, 4*imageWidth, 0u);
 
 	//create a shader resource for the texture
 	D3D11_SHADER_RESOURCE_VIEW_DESC rvd = {0};
 	rvd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	rvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	rvd.Texture2D.MostDetailedMip = 0;
-	rvd.Texture2D.MipLevels = 1;
-	
+	rvd.Texture2D.MipLevels = -1;
 	DXFUNCTIONFAILED(device->lpVtbl->CreateShaderResourceView(device, texture, &rvd, &shaderResourceView));
+
+	deviceContext->lpVtbl->GenerateMips(deviceContext, shaderResourceView);
+
 	D3D11_SAMPLER_DESC  samplerDesc = {0};
 	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
 	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.MipLODBias = 0.0f;
+	samplerDesc.MinLOD = 0.0f;
+	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
 	DXFUNCTIONFAILED(device->lpVtbl->CreateSamplerState(device, &samplerDesc, &samplerState));
 
