@@ -430,7 +430,7 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	samplerDesc.MaxAnisotropy = 0;
 	samplerDesc.MipLODBias = 0.0f;
 	samplerDesc.MinLOD = 0.0f;
-	samplerDesc.MaxLOD = 4.25f;
+	samplerDesc.MaxLOD = 4.45f;
 
 	DXFUNCTIONFAILED(device->lpVtbl->CreateSamplerState(device, &samplerDesc, &samplerState));
 
