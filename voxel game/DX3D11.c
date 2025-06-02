@@ -428,9 +428,9 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.MaxAnisotropy = 0;
-	samplerDesc.MipLODBias = 0.0f;
+	samplerDesc.MipLODBias = -0.10f;
 	samplerDesc.MinLOD = 0.0f;
-	samplerDesc.MaxLOD = 4.45f;
+	samplerDesc.MaxLOD = 5.0f;
 
 	DXFUNCTIONFAILED(device->lpVtbl->CreateSamplerState(device, &samplerDesc, &samplerState));
 

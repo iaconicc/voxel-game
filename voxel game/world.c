@@ -19,7 +19,7 @@ CRITICAL_SECTION chunkmapMutex;
 Chunk chunk;
 bool drawing = false;
 
-#define WORLDSIZEINCHUNKS 16
+#define WORLDSIZEINCHUNKS 5
 #define WORLDSIZEINBLOCKS WORLDSIZEINCHUNKS * CHUNK_SIZE
 
 static WINAPI WorldThread() {
