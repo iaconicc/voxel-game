@@ -54,8 +54,8 @@ ID3D11Buffer* DXMatrixBuffer = NULL;
 FogConstants fog = {
 	{0.0f, 0.0f, 0.0f, 0.0f},
 	{0.0f, 0.0f, 0.0f},
-	0.25f,
-	250.0f,
+	0.45f,
+	200.0f,
 };
 ID3D11Buffer* FogConstantBuffer = NULL;
 
@@ -427,9 +427,10 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.MaxAnisotropy = 0;
 	samplerDesc.MipLODBias = 0.0f;
 	samplerDesc.MinLOD = 0.0f;
-	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	samplerDesc.MaxLOD = 4.25f;
 
 	DXFUNCTIONFAILED(device->lpVtbl->CreateSamplerState(device, &samplerDesc, &samplerState));
 
