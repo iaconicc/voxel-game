@@ -142,8 +142,8 @@ static DWORD WINAPI WorldThread() {
 		CloseHandle(WorkerThreads[i]);
 	}
 
-	DeleteCriticalSection(&chunkmapMutex);
 	DeleteCriticalSection(&JobQueueMutex);
+	DeleteCriticalSection(&chunkmapMutex);
 	DestroyFIFO(&JobQueue);
 	hashmap_free(chunkHashmap);
 	return 0;

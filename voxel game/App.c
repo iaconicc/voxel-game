@@ -86,6 +86,7 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 			running = false;
 			CleanupWindow();
 			WaitForSingleObject(worldThread, INFINITE);
+			DestroyDX3D11DeviceForWindow();
 			return ecode;
 		}
 		DoFrameLogic();

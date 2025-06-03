@@ -256,7 +256,7 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 			}
 		}
 	}
-
+	
 	chunk->mesh.indexBuffer = createIndexDataBuffer(indexList, (chunk->mesh.IndexListSize*sizeof(int)));
 	chunk->mesh.vertexBuffer = createVertexBuffer(vertexList, (vertexListSize * sizeof(vertex)));
 
