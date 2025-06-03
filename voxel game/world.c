@@ -28,7 +28,7 @@ CRITICAL_SECTION JobQueueMutex;
 
 bool ThreadPoolRunning = true;
 
-#define ViewDistance 16
+#define ViewDistance 32
 #define WORLDSIZEINCHUNKS 128
 #define WORLDSIZEINBLOCKS WORLDSIZEINCHUNKS * CHUNK_SIZE
 
@@ -221,7 +221,7 @@ HANDLE StartWorld()
 		WorkerThreads[i] = CreateThread(0, 0, ChunkJobWorkerTheads, NULL, 0, NULL);
 	}
 
-	chunkHashmap = hashmap_new(sizeof(Chunk), 16384, 0, 0, chunkHash, chunkCompare, chunkFree, NULL);
+	chunkHashmap = hashmap_new(sizeof(Chunk), 1024, 0, 0, chunkHash, chunkCompare, chunkFree, NULL);
 
 	SetCamPos((vec3){(float)WORLDSIZEINBLOCKS /2, 33, (float)WORLDSIZEINBLOCKS / 2});
 	getCameraTargetAndPosition(&lastPlayerPos, NULL);
