@@ -5,17 +5,8 @@
 #include "hashmap.h"
 #include <stdbool.h>
 #include <synchapi.h>
-#include "chunk.h"
 #include "FIFO.h"
-
-typedef struct {
-	int ThreadID;
-	struct hashmap* hash;
-	FIFO* ThreadQueue;
-	CRITICAL_SECTION* criticalSection;
-	int x;
-	int z;
-}chunkGenData;
+#include "chunk.h"
 
 HANDLE StartWorld();
 void GetBlock(Block* block, int x, int y, int z);

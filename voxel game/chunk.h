@@ -10,15 +10,15 @@
 #define UnsetBLOCKSOLID(blockstate) ((blockstate & 1) & ~1)
 
 typedef struct {
-	uint16_t blockID;
-	uint16_t blockstate;
-}Block;
-
-typedef struct {
 	ID3D11Buffer* vertexBuffer;
 	ID3D11Buffer* indexBuffer;
 	int IndexListSize;
 }chunkMesh;
+
+typedef struct {
+	uint16_t blockID;
+	uint16_t blockstate;
+}Block;
 
 typedef struct {
 	int x;
@@ -32,4 +32,11 @@ typedef struct {
 	int activeID;
 }Chunk;
 
-void WINAPI generateChunkMesh(void* lparam);
+typedef struct {
+	struct hashmap* hash;
+	CRITICAL_SECTION* criticalSection;
+	int x;
+	int z;
+}chunkGenData;
+
+DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen);

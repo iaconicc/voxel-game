@@ -9,31 +9,31 @@
 #include "Logger.h"
 
 struct hashmap* chunkHashmap;
-
-vec3 lastPlayerPos;
-
 CRITICAL_SECTION chunkmapMutex;
 
-Chunk chunk;
-bool drawing = false;
+typedef (*JobFunction)(void* data);
 
-#define MAXTHREADS 100
-#define MAXJOBS 1024
+typedef struct {
+	JobFunction func;
+	void* data;
+}ChunkJob;
 
+#define MAXWORKERTHREADS 6
+#define MAXJOBS 1000
+HANDLE WorkerThreads[MAXWORKERTHREADS];
 FIFO* JobQueue = NULL;
-FIFO* AvailableThread = NULL;
 
-int ThreadsTaken = 0;
+CONDITION_VARIABLE WorkerSleepCondition;
+CRITICAL_SECTION JobQueueMutex;
 
-#define ViewDistance 32
+bool ThreadPoolRunning = true;
+
+#define ViewDistance 16
 #define WORLDSIZEINCHUNKS 128
 #define WORLDSIZEINBLOCKS WORLDSIZEINCHUNKS * CHUNK_SIZE
 
-typedef struct {
-	chunkGenData* ChunkGenData;
-	bool delete;
-}ChunkJob;
-
+Chunk chunk;
+vec3 lastPlayerPos;
 
 inline static void GetChunkPosFromAbsolutePos(vec3 pos, int* x, int* z)
 {
@@ -43,6 +43,20 @@ inline static void GetChunkPosFromAbsolutePos(vec3 pos, int* x, int* z)
 
 static bool ChunkIsInWorld(int x, int z) {
 	return x >= 0 && x < WORLDSIZEINCHUNKS && z >= 0 && z < WORLDSIZEINCHUNKS;
+}
+
+static void RunChunkGen(void* data){
+	chunkGenData* ChunkGenData = (chunkGenData*) data;
+	generateChunkMesh(ChunkGenData);
+}
+
+static void QueueChunkJob(JobFunction func, void* data){
+	ChunkJob job = {func, data};
+
+	EnterCriticalSection(&JobQueueMutex);
+	PushElement(&JobQueue, &job);
+	WakeConditionVariable(&WorkerSleepCondition);
+	LeaveCriticalSection(&JobQueueMutex);
 }
 
 static void CheckViewDistance(vec3 pos){
@@ -59,36 +73,40 @@ static void CheckViewDistance(vec3 pos){
 					chunkGenData* genData = calloc(1,sizeof(chunkGenData));
 					genData->criticalSection = &chunkmapMutex;
 					genData->hash = chunkHashmap;
-					genData->ThreadQueue = AvailableThread;
 					genData->x = x;
 					genData->z = z;
-					ChunkJob job = {genData};
-					job.delete = false;
-					PushElement(&JobQueue, &job);
+					QueueChunkJob(RunChunkGen, genData);
 				}
 			}
 		}
 	}
 }
 
-static WINAPI ChunkJobThread(){
-	while (ProgramIsRunning()){
-		if (!isFIFOEmpty(&JobQueue)){
-			if(!isFIFOEmpty(&AvailableThread)){
-				int* Thread =(int*) PopElement(&AvailableThread);
-				ChunkJob* chunkJob =(ChunkJob*) PopElement(&JobQueue);
-				chunkJob->ChunkGenData->ThreadID = *Thread;
-				CreateThread(0, 0, generateChunkMesh, chunkJob->ChunkGenData, 0, NULL);
+static DWORD WINAPI ChunkJobWorkerTheads(LPVOID param){
+	while (ThreadPoolRunning) {
+		EnterCriticalSection(&JobQueueMutex);
+		while (isFIFOEmpty(&JobQueue)) {
+			SleepConditionVariableCS(&WorkerSleepCondition, &JobQueueMutex, INFINITE);
+
+			if (!ThreadPoolRunning) {
+				LeaveCriticalSection(&JobQueueMutex);
+				return 0;
 			}
 		}
+
+		ChunkJob* job = PopElement(&JobQueue);
+		LeaveCriticalSection(&JobQueueMutex);
+
+		if (job->func &&job->data){
+			job->func(job->data);
+		}
+
 	}
 	return 0;
 }
 
-static WINAPI WorldThread() {
-
-	CreateThread(0, 0, ChunkJobThread, NULL, 0, NULL);
-
+static DWORD WINAPI WorldThread() {
+	
 	while (ProgramIsRunning())
 	{
 		if (!DxsettingUp())
@@ -113,8 +131,20 @@ static WINAPI WorldThread() {
 		}
 	}
 
+	EnterCriticalSection(&JobQueueMutex);
+	ThreadPoolRunning = false;
+	WakeAllConditionVariable(&WorkerSleepCondition);
+	LeaveCriticalSection(&JobQueueMutex);
+
+	//close all worker threads
+	for (int i = 0; i < MAXWORKERTHREADS; i++){
+		WaitForSingleObject(WorkerThreads[i], INFINITE);
+		CloseHandle(WorkerThreads[i]);
+	}
+
+	DeleteCriticalSection(&chunkmapMutex);
+	DeleteCriticalSection(&JobQueueMutex);
 	DestroyFIFO(&JobQueue);
-	DestroyFIFO(&AvailableThread);
 	hashmap_free(chunkHashmap);
 	return 0;
 }
@@ -182,11 +212,13 @@ CRITICAL_SECTION* getChunkmapMutex()
 HANDLE StartWorld()
 {
 	InitializeCriticalSection(&chunkmapMutex);
+	InitializeCriticalSection(&JobQueueMutex);
+	InitializeConditionVariable(&WorkerSleepCondition);
 	InitFIFO(&JobQueue, MAXJOBS, sizeof(ChunkJob));
-	InitFIFO(&AvailableThread, MAXTHREADS, sizeof(int));
 	
-	for (int i = 0; i < MAXTHREADS; i++){
-		PushElement(&AvailableThread, &i);
+	//Create worker threads
+	for (int i = 0; i < MAXWORKERTHREADS; i++){
+		WorkerThreads[i] = CreateThread(0, 0, ChunkJobWorkerTheads, NULL, 0, NULL);
 	}
 
 	chunkHashmap = hashmap_new(sizeof(Chunk), 16384, 0, 0, chunkHash, chunkCompare, chunkFree, NULL);
@@ -195,10 +227,9 @@ HANDLE StartWorld()
 	getCameraTargetAndPosition(&lastPlayerPos, NULL);
 	CheckViewDistance(lastPlayerPos);
 
-	DWORD id;
-	HANDLE handle;
 	//chunk generation thread
-	handle = CreateThread(0,0, WorldThread, 0, 0, &id);
+	HANDLE handle;
+	handle = CreateThread(0,0, WorldThread, 0, 0, NULL);
 
 	return handle;
 }

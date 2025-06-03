@@ -1,6 +1,5 @@
 #include "chunk.h"
 
-#include "world.h"
 #include "Blocks.h"
 #include "BlockTexture.h"
 #include "App.h"
@@ -190,9 +189,8 @@ static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex,
 		}
 }
 
-void WINAPI generateChunkMesh(void* lparam)
+DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 {
-	chunkGenData* chunkGen = (chunkGenData*) lparam;
 
 	CRITICAL_SECTION* mutex = chunkGen->criticalSection;
 	struct hashmap* chunkHashmap = chunkGen->hash;
@@ -266,10 +264,9 @@ void WINAPI generateChunkMesh(void* lparam)
 	hashmap_set(chunkHashmap, chunk);
 	LeaveCriticalSection(mutex);
 
-	PushElement(&chunkGen->ThreadQueue, &chunkGen->ThreadID);
 	free(indexList);
 	free(vertexList);
 	free(chunk);
-	free(lparam);
+	free(chunkGen);
 	return 0;
 }
