@@ -47,7 +47,7 @@ static bool ChunkIsInWorld(int x, int z) {
 
 static void RunChunkGen(void* data){
 	chunkGenData* ChunkGenData = (chunkGenData*) data;
-	generateChunkMesh(ChunkGenData);
+	generateChunkMesh(ChunkGenData);//the data is freed on generateChunkMesh() please do not double free data
 }
 
 static void QueueChunkJob(JobFunction func, void* data){

@@ -237,7 +237,7 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 	int* indexList = calloc(chunk->mesh.IndexListSize,sizeof(int));
 	vertex* vertexList = calloc(vertexListSize,sizeof(vertex));
 
-	LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexListSize, ((sizeof(vertex) * vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000));
+	//LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexListSize, ((sizeof(vertex) * vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000));
 
 	int currentVertexindex = 0;
 	int currentIndexListindex = 0;
@@ -256,12 +256,14 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 			}
 		}
 	}
-	
-	chunk->mesh.indexBuffer = createIndexDataBuffer(indexList, (chunk->mesh.IndexListSize*sizeof(int)));
-	chunk->mesh.vertexBuffer = createVertexBuffer(vertexList, (vertexListSize * sizeof(vertex)));
+
 
 	EnterCriticalSection(mutex);
-	hashmap_set(chunkHashmap, chunk);
+	if (!(hashmap_get(chunkHashmap, chunk))) {
+		chunk->mesh.indexBuffer = createIndexDataBuffer(indexList, (chunk->mesh.IndexListSize * sizeof(int)));
+		chunk->mesh.vertexBuffer = createVertexBuffer(vertexList, (vertexListSize * sizeof(vertex)));
+		hashmap_set(chunkHashmap, chunk);
+	}
 	LeaveCriticalSection(mutex);
 
 	free(indexList);
