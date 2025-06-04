@@ -2,8 +2,8 @@
 #include "Camera.h"
 #include "BlockTexture.h"
 #include <d3dcompiler.h>
-#include <wincodec.h>
 #include <d3d11_4.h>
+#include <sys/timeb.h>
 #include "world.h"
 
 #define MODULE L"DX3D11"
@@ -20,6 +20,21 @@ HWND hwnd;
 int windowedwidth;
 int windowedheight;
 
+float colour[4] = { 0.0f, 0.7f, 1.0f, 1.0f };
+
+typedef struct {
+	mat4 transformationMatrix;
+	mat4 projectionMatrix;
+	mat4 viewMatrix;
+}MatrixBuffers;
+
+typedef struct {
+	vec4 Fogcolour;
+	vec3 CamPos;
+	float FogDensity;
+	float FogEnd;
+}FogConstants;
+
 ID3D11Multithread* thread = NULL;
 
 IDXGISwapChain* swapchain = NULL;
@@ -34,6 +49,15 @@ ID3D11DepthStencilView* depthStencilView;
 //constant buffers (matrixes)
 MatrixBuffers matrixBuffer;
 ID3D11Buffer* DXMatrixBuffer = NULL;
+
+//fog constants
+FogConstants fog = {
+	{0.0f, 0.0f, 0.0f, 0.0f},
+	{0.0f, 0.0f, 0.0f},
+	0.45f,
+	200.0f,
+};
+ID3D11Buffer* FogConstantBuffer = NULL;
 
 ID3D11Texture2D* texture = NULL;
 ID3D11ShaderResourceView* shaderResourceView = NULL;
@@ -81,7 +105,7 @@ static void CalculatePerspective(int width, int height)
 	float aspectRatio =(float) width /(float) height;
 	float fov = glm_rad(70.0f);
 	float nearPlane = 0.1f;
-	float farPlane = 100.0f;
+	float farPlane = 1000.0f;
 
 	glm_perspective(fov, aspectRatio, nearPlane, farPlane, matrixBuffer.projectionMatrix);
 	glm_mat4_transpose(matrixBuffer.projectionMatrix);
@@ -297,7 +321,7 @@ void UpdateOnResize(int width, int height)
 	CalculatePerspective(width, height);
 }
 
-
+struct _timeb lastEpoch, newEpoch;
 void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 {
 	windowedheight = height;
@@ -370,35 +394,43 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	D3D11_TEXTURE2D_DESC td = {0};
 	td.Width = imageWidth;
 	td.Height = imageHeight;
-	td.MipLevels = 1;
+	td.MipLevels = 0;
 	td.ArraySize = 1;
 	td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	td.SampleDesc.Count = 1;
 	td.SampleDesc.Quality = 0;
 	td.Usage = D3D11_USAGE_DEFAULT;
-	td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	td.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 	td.CPUAccessFlags = 0;
-	td.MiscFlags = 0;
+	td.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
 	D3D11_SUBRESOURCE_DATA tsd = {0};
 	tsd.pSysMem = textureAtlasBitmap;
 	tsd.SysMemPitch = 4 * imageWidth;
 
-	DXFUNCTIONFAILED(device->lpVtbl->CreateTexture2D(device, &td, &tsd, &texture));
+	DXFUNCTIONFAILED(device->lpVtbl->CreateTexture2D(device, &td, NULL, &texture));
+
+	deviceContext->lpVtbl->UpdateSubresource(deviceContext, texture, 0u, NULL, textureAtlasBitmap, 4*imageWidth, 0u);
 
 	//create a shader resource for the texture
 	D3D11_SHADER_RESOURCE_VIEW_DESC rvd = {0};
 	rvd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	rvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	rvd.Texture2D.MostDetailedMip = 0;
-	rvd.Texture2D.MipLevels = 1;
-	
+	rvd.Texture2D.MipLevels = -1;
 	DXFUNCTIONFAILED(device->lpVtbl->CreateShaderResourceView(device, texture, &rvd, &shaderResourceView));
+
+	deviceContext->lpVtbl->GenerateMips(deviceContext, shaderResourceView);
+
 	D3D11_SAMPLER_DESC  samplerDesc = {0};
 	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
 	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.MaxAnisotropy = 0;
+	samplerDesc.MipLODBias = -0.10f;
+	samplerDesc.MinLOD = 0.0f;
+	samplerDesc.MaxLOD = 3.0f;
 
 	DXFUNCTIONFAILED(device->lpVtbl->CreateSamplerState(device, &samplerDesc, &samplerState));
 
@@ -447,7 +479,26 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	msd.pSysMem = &matrixBuffer;
 	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &mbd, &msd, &DXMatrixBuffer));
 
+	//create buffer for fog constants
+	D3D11_BUFFER_DESC fbd = { 0 };
+	fbd.ByteWidth = sizeof(FogConstants);
+	fbd.Usage = D3D11_USAGE_DYNAMIC;
+	fbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	fbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	fbd.MiscFlags = 0;
+	fbd.StructureByteStride = 0;
+
+	fog.Fogcolour[0] = colour[0];
+	fog.Fogcolour[1] = colour[1];
+	fog.Fogcolour[2] = colour[2];
+	fog.Fogcolour[3] = colour[3];
+
+	D3D11_SUBRESOURCE_DATA fsd = { 0 };
+	fsd.pSysMem = &fog;
+	DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &fbd, &fsd, &FogConstantBuffer));
+
 	deviceContext->lpVtbl->VSSetConstantBuffers(deviceContext, 0, 1, &DXMatrixBuffer);
+	deviceContext->lpVtbl->PSSetConstantBuffers(deviceContext, 0, 1, &FogConstantBuffer);
 
 	//create pixel shader
 	ID3DBlob* pixelShaderBlob = NULL;
@@ -468,6 +519,7 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	getDxgiDebug()->lpVtbl->ReportLiveObjects(getDxgiDebug(), DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_DETAIL);
 #endif
 
+	_ftime64_s(&lastEpoch);
 	settingUp = false;
 }
 
@@ -611,6 +663,11 @@ void DestroyDX3D11DeviceForWindow()
 		thread->lpVtbl->Release(thread);
 		thread = NULL;
 	}
+	if (FogConstantBuffer)
+	{
+		FogConstantBuffer->lpVtbl->Release(FogConstantBuffer);
+		FogConstantBuffer = NULL;
+	}
 }
 
 static void updateTransformMatrix(vec3 pos)
@@ -640,13 +697,18 @@ static void updateViewMatrix()
 	vec3 upVector = { 0.0f, 1.0f, 0.0f };       // Up direction
 	getCameraTargetAndPosition(&cameraPosition, &cameraTarget);
 
+	glm_vec3_copy(cameraPosition, fog.CamPos);
 	glm_lookat(cameraPosition, cameraTarget, upVector, matrixBuffer.viewMatrix);
 	glm_mat4_transpose(matrixBuffer.viewMatrix);
 
-	D3D11_MAPPED_SUBRESOURCE map = { 0 };
-	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, DXMatrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map));
-	memcpy(map.pData, &matrixBuffer, sizeof(MatrixBuffers));
+	D3D11_MAPPED_SUBRESOURCE MatrixMap = { 0 };
+	D3D11_MAPPED_SUBRESOURCE FogMap = { 0 };
+	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, DXMatrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MatrixMap));
+	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, FogConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &FogMap));
+	memcpy(MatrixMap.pData, &matrixBuffer, sizeof(MatrixBuffers));
+	memcpy(FogMap.pData, &fog, sizeof(FogConstants));
 	deviceContext->lpVtbl->Unmap(deviceContext, DXMatrixBuffer, 0);
+	deviceContext->lpVtbl->Unmap(deviceContext, FogConstantBuffer, 0);
 }
 
 void DrawMesh(ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, int indexBufferElements, vec3 pos)
@@ -660,19 +722,19 @@ void DrawMesh(ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, int indexBu
 		deviceContext->lpVtbl->DrawIndexed(deviceContext, indexBufferElements, 0, 0);
 }
 
+float deltaTime = 0;
+float frameRate = 0;
 void EndFrame()
 {
 	HRESULT hr;
 	WCHAR* msg;
 
 	updateViewMatrix();
-	float colour[4] = {0.0f, 0.7f, 1.0f, 1.0f};
 
 	if (render)
 	{
-		deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 4u, &renderTargetView, depthStencilView);
-		
-		if (FAILED(hr = swapchain->lpVtbl->Present(swapchain, 1u, 0u)))
+		deviceContext->lpVtbl->OMSetRenderTargets(deviceContext, 1u, &renderTargetView, depthStencilView);
+		if (FAILED(hr = swapchain->lpVtbl->Present(swapchain, 1u, 0)))
 		{
 			if (hr == DXGI_ERROR_DEVICE_REMOVED)
 			{
@@ -685,8 +747,23 @@ void EndFrame()
 				LOGWIN32EXCEPTION(hr);
 			}
 		}
+		deviceContext->lpVtbl->ClearDepthStencilView(deviceContext, depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+		deviceContext->lpVtbl->ClearRenderTargetView(deviceContext, renderTargetView, colour);
+		
 	}
-	deviceContext->lpVtbl->ClearDepthStencilView(deviceContext, depthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-	deviceContext->lpVtbl->ClearRenderTargetView(deviceContext, renderTargetView, colour);
+
 	switching = false;
+	
+	_ftime64_s(&newEpoch);
+	deltaTime = ((float)(newEpoch.time - lastEpoch.time)) + (((float)(newEpoch.millitm - lastEpoch.millitm)) / 1000);
+	lastEpoch = newEpoch;
+	frameRate = deltaTime > 0 ? (1.0f / deltaTime) : 0.0f;
+}
+
+float getFrameDelta(){
+	return deltaTime;
+}
+
+float getFrameRate(){
+	return frameRate;
 }

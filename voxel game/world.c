@@ -1,59 +1,184 @@
 #include "world.h"
-#include "chunk.h"
 #include "App.h"
 #include "Camera.h"
 #include <processthreadsapi.h>
 #include "hashmap.h"
 #include "DX3D11.h"
-#include <sys/timeb.h>
-#include <time.h>
 
 #define MODULE L"WORLD"
 #include "Logger.h"
 
 struct hashmap* chunkHashmap;
-
-vec3 lastPlayerPos;
-
 CRITICAL_SECTION chunkmapMutex;
 
+typedef (*JobFunction)(void* data);
+
+typedef struct {
+	JobFunction func;
+	void* data;
+}ChunkJob;
+
+#define MAXWORKERTHREADS 6
+#define MAXJOBS 1000
+HANDLE WorkerThreads[MAXWORKERTHREADS];
+FIFO* JobQueue = NULL;
+
+CONDITION_VARIABLE WorkerSleepCondition;
+CRITICAL_SECTION JobQueueMutex;
+
+bool ThreadPoolRunning = true;
+
+#define ViewDistance 32
+#define WORLDSIZEINCHUNKS 128
+#define WORLDSIZEINBLOCKS WORLDSIZEINCHUNKS * CHUNK_SIZE
+
 Chunk chunk;
-bool drawing = false;
+vec3 lastPlayerPos;
 
-static WINAPI WorldThread() {
+inline static void GetChunkPosFromAbsolutePos(vec3 pos, int* x, int* z)
+{
+	*x =(int) floorf(pos[0]/ CHUNK_SIZE);
+	*z =(int) floorf(pos[2] / CHUNK_SIZE);
+}
 
+static bool ChunkIsInWorld(int x, int z) {
+	return x >= 0 && x < WORLDSIZEINCHUNKS && z >= 0 && z < WORLDSIZEINCHUNKS;
+}
+
+static void RunChunkGen(void* data){
+	chunkGenData* ChunkGenData = (chunkGenData*) data;
+	generateChunkMesh(ChunkGenData);//the data is freed on generateChunkMesh() please do not double free data
+}
+
+static void QueueChunkJob(JobFunction func, void* data){
+	ChunkJob job = {func, data};
+
+	EnterCriticalSection(&JobQueueMutex);
+	PushElement(&JobQueue, &job);
+	WakeConditionVariable(&WorkerSleepCondition);
+	LeaveCriticalSection(&JobQueueMutex);
+}
+
+static void CheckViewDistance(vec3 pos){
+	int Chunkx = 0, Chunkz = 0;
+	GetChunkPosFromAbsolutePos(pos, &Chunkx, &Chunkz);
+
+	for (int x = Chunkx - ViewDistance; x < Chunkx + ViewDistance; x++){
+		for (int z = Chunkz - ViewDistance; z < Chunkz + ViewDistance; z++){
+			if (ChunkIsInWorld(x, z)){
+				chunk.pos.x = x;
+				chunk.pos.z = z;
+				Chunk* existingChunk;
+				if (!(existingChunk = hashmap_get(chunkHashmap, &chunk))){
+					chunkGenData* genData = calloc(1,sizeof(chunkGenData));
+					genData->criticalSection = &chunkmapMutex;
+					genData->hash = chunkHashmap;
+					genData->x = x;
+					genData->z = z;
+					QueueChunkJob(RunChunkGen, genData);
+				}
+			}
+		}
+	}
+}
+
+static DWORD WINAPI ChunkJobWorkerTheads(LPVOID param){
+	while (ThreadPoolRunning) {
+		EnterCriticalSection(&JobQueueMutex);
+		while (isFIFOEmpty(&JobQueue)) {
+			SleepConditionVariableCS(&WorkerSleepCondition, &JobQueueMutex, INFINITE);
+
+			if (!ThreadPoolRunning) {
+				LeaveCriticalSection(&JobQueueMutex);
+				return 0;
+			}
+		}
+
+		ChunkJob* job = PopElement(&JobQueue);
+		LeaveCriticalSection(&JobQueueMutex);
+
+		if (job->func &&job->data){
+			job->func(job->data);
+		}
+
+	}
+	return 0;
+}
+
+static DWORD WINAPI WorldThread() {
+	
 	while (ProgramIsRunning())
 	{
 		if (!DxsettingUp())
 		{
 			vec3 currentPlayerPos;
 			getCameraTargetAndPosition(&currentPlayerPos, NULL);
-			if (currentPlayerPos[0] != lastPlayerPos[0] || currentPlayerPos[1] != lastPlayerPos[1] || currentPlayerPos[2] != lastPlayerPos[2]){
-				for (int x = 0; x < 16; x++)
-				{
-					for (int z = 0; z < 16; z++)
-					{
-						chunk.pos.x = x;
-						chunk.pos.z = z;
-						Chunk* existingChunk = hashmap_get(chunkHashmap, &chunk);
-						if (!existingChunk)
-						{
-							chunkGenData* genData =  malloc(sizeof(chunkGenData));
-							genData->criticalSection = &chunkmapMutex;
-							genData->hash = chunkHashmap;
-							genData->x = x;
-							genData->z = z;
-							CreateThread(0, 0, generateChunkMesh, genData, 0, NULL);
-						}
-					}
-				}
-				glm_vec3_copy(currentPlayerPos, lastPlayerPos);
+			
+			int LastChunkx = 0;
+			int LastChunkz = 0;
+
+			int Chunkx = 0;
+			int Chunkz = 0;
+
+			GetChunkPosFromAbsolutePos(lastPlayerPos, &LastChunkx, &LastChunkz);
+			GetChunkPosFromAbsolutePos(currentPlayerPos, &Chunkx, &Chunkz);
+			
+			if (!(Chunkx == LastChunkx && Chunkz == LastChunkz)){
+				CheckViewDistance(currentPlayerPos);
 			}
+
+			glm_ivec3_copy(currentPlayerPos, lastPlayerPos);
 		}
 	}
 
+	EnterCriticalSection(&JobQueueMutex);
+	ThreadPoolRunning = false;
+	WakeAllConditionVariable(&WorkerSleepCondition);
+	LeaveCriticalSection(&JobQueueMutex);
+
+	//close all worker threads
+	for (int i = 0; i < MAXWORKERTHREADS; i++){
+		WaitForSingleObject(WorkerThreads[i], INFINITE);
+		CloseHandle(WorkerThreads[i]);
+	}
+
+	DeleteCriticalSection(&JobQueueMutex);
+	DeleteCriticalSection(&chunkmapMutex);
+	DestroyFIFO(&JobQueue);
 	hashmap_free(chunkHashmap);
 	return 0;
+}
+
+static bool BlockIsInWorld(int x, int y, int z) {
+	return x >= 0 && x < WORLDSIZEINBLOCKS &&
+		y >= 0 && y < CHUNK_SIZEV &&
+		z >= 0 && z < WORLDSIZEINBLOCKS;
+}
+
+void GetBlock(Block* block,int x, int y, int z){
+	if (!BlockIsInWorld(x, y, z)){
+		block->blockstate = UnsetBLOCKSOLID(block->blockstate);
+		return;
+	}else{
+		block->blockstate = SetBLOCKSOLID(block->blockstate);
+	}
+
+	if (y == 0)
+	{
+		block->blockID = 4;
+	}
+	if (y > 0)
+	{
+		block->blockID = 0;
+	}
+	if (y > CHUNK_SIZEV - 5)
+	{
+		block->blockID = 1;
+	}
+	if (y == CHUNK_SIZEV - 1)
+	{
+		block->blockID = 2;
+	}
 }
 
 static uint64_t chunkHash(const void* item, uint64_t seed0, uint64_t seed1) {
@@ -84,20 +209,29 @@ CRITICAL_SECTION* getChunkmapMutex()
 	return &chunkmapMutex;
 }
 
-void StartWorld()
+HANDLE StartWorld()
 {
 	InitializeCriticalSection(&chunkmapMutex);
+	InitializeCriticalSection(&JobQueueMutex);
+	InitializeConditionVariable(&WorkerSleepCondition);
+	InitFIFO(&JobQueue, MAXJOBS, sizeof(ChunkJob));
+	
+	//Create worker threads
+	for (int i = 0; i < MAXWORKERTHREADS; i++){
+		WorkerThreads[i] = CreateThread(0, 0, ChunkJobWorkerTheads, NULL, 0, NULL);
+	}
 
+	chunkHashmap = hashmap_new(sizeof(Chunk), 1024, 0, 0, chunkHash, chunkCompare, chunkFree, NULL);
+
+	SetCamPos((vec3){(float)WORLDSIZEINBLOCKS /2, 33, (float)WORLDSIZEINBLOCKS / 2});
 	getCameraTargetAndPosition(&lastPlayerPos, NULL);
-	//ensure that chunks are generated at least once
-	lastPlayerPos[0] = lastPlayerPos[0]+1;
+	CheckViewDistance(lastPlayerPos);
 
-	chunkHashmap = hashmap_new(sizeof(Chunk), 1089, 0, 0, chunkHash, chunkCompare, chunkFree, NULL);
-
-	DWORD id;
-	HANDLE handle;
 	//chunk generation thread
-	handle = CreateThread(0,0, WorldThread, 0, 0, &id);
+	HANDLE handle;
+	handle = CreateThread(0,0, WorldThread, 0, 0, NULL);
+
+	return handle;
 }
 
 void DrawChunks()
@@ -105,22 +239,13 @@ void DrawChunks()
 	if (chunkHashmap) {
 		Chunk* chunk = NULL;
 		size_t i = 0;
-
-		struct _timeb start, stop;
 		
-		_ftime64_s(&start);
 		EnterCriticalSection(&chunkmapMutex);
 		while (hashmap_iter(chunkHashmap, &i, &chunk)) {
-			if (chunk->chunkIsReady) {
-				vec3 pos = { ((float)(chunk->pos.x)) * 16, 0.0f, ((float)(chunk->pos.z)) * 16 };
+				vec3 pos = { ((float)(chunk->pos.x)) * (float) CHUNK_SIZE, 0.0f, ((float)(chunk->pos.z)) * (float) CHUNK_SIZE};
 				DrawMesh(chunk->mesh.vertexBuffer, chunk->mesh.indexBuffer, chunk->mesh.IndexListSize, pos);
-			}
 		};
 		LeaveCriticalSection(&chunkmapMutex);
-		_ftime64_s(&stop);
-		
-		LogDebug(L"time elapsed: %f",(float)((((stop.time * 1000) + stop.millitm))-(((start.time * 1000)+start.millitm))));
-		
 	}
 }
 

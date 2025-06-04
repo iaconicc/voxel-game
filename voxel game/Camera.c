@@ -26,8 +26,8 @@ void getCameraTargetAndPosition(vec3* pos, vec3* target)
 
 void initialiseCamera()
 {
-    glm_vec3_copy((vec3) { 0.0f, 33.0f, -5.0f }, camera.pos);
-    glm_vec3_copy((vec3) { 0.0f, 33.0f, 0.0f }, camera.target);
+    glm_vec3_copy((vec3) { 0.0f, 0.0f, 0.0f }, camera.pos);
+    glm_vec3_add(camera.pos, (vec3) { 0.0f, 0.0f, 1.0f }, camera.target);
     glm_vec3_sub(camera.target, camera.pos, camera.forward); //calculate forward vector
     glm_vec3_normalize(camera.forward);
     glm_vec3_cross(camera.forward, up, camera.right);
@@ -54,6 +54,10 @@ void initialiseCamera()
 void SetCamPos(vec3 newPos)
 {
     glm_vec3_copy(newPos, camera.pos);
+    glm_vec3_add(camera.pos, (vec3) { 0.0f, 0.0f, 1.0f }, camera.target);
+    // Recalculate the right vector after both rotations
+    glm_vec3_cross(camera.forward, up, camera.right);
+    glm_vec3_normalize(camera.right);
 }
 
 void MoveCameraForward(float displacement)

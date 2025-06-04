@@ -5,16 +5,20 @@
 #define CHUNK_SIZE  16
 #define CHUNK_SIZEV 32
 
-typedef struct {
-	uint16_t blockID;
-	uint16_t blockstate;
-}Block;
+#define ISBLOCKSOLID(blockstate) (blockstate & 1)
+#define SetBLOCKSOLID(blockstate) ((blockstate & 1) | 1)
+#define UnsetBLOCKSOLID(blockstate) ((blockstate & 1) & ~1)
 
 typedef struct {
 	ID3D11Buffer* vertexBuffer;
 	ID3D11Buffer* indexBuffer;
 	int IndexListSize;
 }chunkMesh;
+
+typedef struct {
+	uint16_t blockID;
+	uint16_t blockstate;
+}Block;
 
 typedef struct {
 	int x;
@@ -25,7 +29,14 @@ typedef struct {
 	Block blocksState[CHUNK_SIZE][CHUNK_SIZEV][CHUNK_SIZE];
 	chunkMesh mesh;
 	chunkPos pos;
-	bool chunkIsReady;
+	int activeID;
 }Chunk;
 
-void WINAPI generateChunkMesh(void* lparam);
+typedef struct {
+	struct hashmap* hash;
+	CRITICAL_SECTION* criticalSection;
+	int x;
+	int z;
+}chunkGenData;
+
+DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen);

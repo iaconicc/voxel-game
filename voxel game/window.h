@@ -7,3 +7,4 @@ void CleanupWindow();
 
 int getWindowheight();
 int getWindowWidth();
+void SetWindowTitle(WCHAR* string);

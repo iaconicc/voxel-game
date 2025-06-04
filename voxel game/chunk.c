@@ -1,11 +1,11 @@
 #include "chunk.h"
 
-#include "world.h"
 #include "Blocks.h"
 #include "BlockTexture.h"
 #include "App.h"
 #include "hashmap.h"
 #include <synchapi.h>
+#include "FIFO.h"
 
 #define MODULE L"chunk"
 #include "Logger.h"
@@ -80,10 +80,6 @@ const static vec2 uvs270[6][4] = {
 	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}  // east face
 };
 
-#define ISBLOCKSOLID(blockstate) (blockstate & 1)
-#define SetBLOCKSOLID(blockstate) ((blockstate & 1) | 1)
-#define UnsetBLOCKSOLID(blockstate) ((blockstate & 1) & ~1)
-
 static void populateVoxelMap(Chunk* chunk){
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
 	{
@@ -92,8 +88,18 @@ static void populateVoxelMap(Chunk* chunk){
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
 				chunk->blocksState[x][y][z].blockstate = SetBLOCKSOLID(chunk->blocksState[x][y][z].blockstate);
+				GetBlock(&chunk->blocksState[x][y][z], x + (chunk->pos.x * CHUNK_SIZE), y, z + (chunk->pos.z * CHUNK_SIZE));
 			}
 		}
+	}
+}
+
+static bool IsBlockInChunk(int x, int y, int z){
+	if (x < 0 || x > CHUNK_SIZE - 1 || y < 0 || y > CHUNK_SIZEV - 1 || z < 0 || z > CHUNK_SIZE - 1){
+		return false;
+	}
+	else{
+		true;
 	}
 }
 
@@ -103,13 +109,10 @@ static bool checkVoxel(Chunk* chunk,vec3 pos)
 	int y = (int) floorf(pos[1]);
 	int z = (int) floorf(pos[2]);
 
-	if (x < 0 || x > CHUNK_SIZE - 1 || y < 0 || z < 0 || z > CHUNK_SIZE - 1)
-	{
-		return true;
-	}
-
-	if (y > CHUNK_SIZEV - 1){
-		return false;
+	if (!IsBlockInChunk(x, y, z)){
+		Block block;
+		GetBlock(&block, x + (chunk->pos.x * CHUNK_SIZE), y, z + chunk->pos.z * CHUNK_SIZE);
+		return ISBLOCKSOLID(block.blockstate);
 	}
 
 	return ISBLOCKSOLID(chunk->blocksState[x][y][z].blockstate);
@@ -122,7 +125,8 @@ static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex,
 			vec3 blockTocheck;
 			glm_vec3_add(pos, faceChecks[f], blockTocheck);
 			if (!checkVoxel(chunk, blockTocheck)) {
-				BlockType block = GetBlockTypeByID(3);
+				uint16_t blockID = chunk->blocksState[(int)pos[0]][(int)pos[1]][(int)pos[2]].blockID;
+				BlockType block = GetBlockTypeByID(blockID);
 				int baseIndex = (*currentVertexindex);
 				//loop through each vertex and add a uv and vertex
 				for (size_t v = 0; v < 4; v++)
@@ -185,19 +189,17 @@ static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex,
 		}
 }
 
-void WINAPI generateChunkMesh(void* lparam)
+DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 {
-	chunkGenData* chunkGen = (chunkGenData*) lparam;
 
 	CRITICAL_SECTION* mutex = chunkGen->criticalSection;
 	struct hashmap* chunkHashmap = chunkGen->hash;
 	
-	Chunk* chunk = malloc(sizeof(Chunk));
+	Chunk* chunk = calloc(1, sizeof(Chunk));
 	if (!chunk){
 		return -1;
 	}
 
-	chunk->chunkIsReady = false;
 	chunk->mesh.IndexListSize = 0;
 	int vertexListSize = 0;
 
@@ -255,15 +257,18 @@ void WINAPI generateChunkMesh(void* lparam)
 		}
 	}
 
-	chunk->mesh.indexBuffer = createIndexDataBuffer(indexList, (chunk->mesh.IndexListSize*sizeof(int)));
-	chunk->mesh.vertexBuffer = createVertexBuffer(vertexList, (vertexListSize * sizeof(vertex)));
 
-	chunk->chunkIsReady = true;
 	EnterCriticalSection(mutex);
-	hashmap_set(chunkHashmap, chunk);
+	if (!(hashmap_get(chunkHashmap, chunk))) {
+		chunk->mesh.indexBuffer = createIndexDataBuffer(indexList, (chunk->mesh.IndexListSize * sizeof(int)));
+		chunk->mesh.vertexBuffer = createVertexBuffer(vertexList, (vertexListSize * sizeof(vertex)));
+		hashmap_set(chunkHashmap, chunk);
+	}
 	LeaveCriticalSection(mutex);
+
 	free(indexList);
 	free(vertexList);
-	free(lparam);
+	free(chunk);
+	free(chunkGen);
 	return 0;
 }

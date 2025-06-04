@@ -7,6 +7,7 @@ cbuffer TransformationBuff{
 struct VSOut
 {
     float2 tex : TexCoord;
+    float3 WorldPos : WORLDPOS;
     float4 pos : SV_Position;
 };
 
@@ -18,6 +19,7 @@ VSOut main(float3 pos : POSITION, float2 tex : TexCoord)
     
     //translate to world space
     worldpos = mul(worldpos, transform);
+    vso.WorldPos = worldpos;
     
     //translate to screenspace
     float4 viewspace = mul(worldpos, view);

@@ -5,14 +5,11 @@
 #include "hashmap.h"
 #include <stdbool.h>
 #include <synchapi.h>
+#include "FIFO.h"
+#include "chunk.h"
 
-typedef struct {
-	struct hashmap* hash;
-	CRITICAL_SECTION* criticalSection;
-	int x;
-	int z;
-}chunkGenData;
+HANDLE StartWorld();
+void GetBlock(Block* block, int x, int y, int z);
 
-void StartWorld();
 void DrawChunks();
 CRITICAL_SECTION* getChunkmapMutex();

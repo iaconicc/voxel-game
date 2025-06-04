@@ -16,7 +16,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 
 	//inits program then runs until program exits or has exception
 	int returnStatus = ApplicationStartAndRun(800, 600, L"voxel game engine");
-	
+
 	// Handle program exit
 	if (returnStatus != 1) {
 		MessageBoxW(NULL, L"The program has exited with an exception. Please refer to the logs.", L"Error", MB_OK | MB_ICONERROR);
@@ -29,5 +29,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 	 StopLogger();
 	 LogInfo(L"Logger stopped. Exiting application.");
 
-	 return returnStatus;
+	 ExitProcess(returnStatus);
+	 //return returnStatus;
 }
