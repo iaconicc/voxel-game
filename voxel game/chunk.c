@@ -242,7 +242,7 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 		baseIndex += 4;
 	}
 
-	//LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u %u", vertexListSize, ((sizeof(vertex) * vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000), faces);
+	LogInfo(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u %u", vertexListSize, ((sizeof(vertex) * vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000), faces);
 
 	int currentVertexindex = 0;
 	int currentIndexListindex = 0;

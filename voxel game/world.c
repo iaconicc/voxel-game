@@ -172,7 +172,7 @@ void GetBlock(Block* block,int x, int y, int z){
 
 		float r = sqrtf(x * x + z * z);
 		float val = sin(r * 0.1f) + sin((x + z) * 0.1f);
-		int sinx = CLAMP((int)(CHUNK_SIZEV * 0.25f * (2 + val)), 1, CHUNK_SIZEV - 1);
+		int sinx = CLAMP((int)(CHUNK_SIZEV * 0.25f * (2 + val)), 32, CHUNK_SIZEV - 1);
 
 		if (y <= sinx) {
 			if (y == sinx){

@@ -15,6 +15,7 @@ void toggleFullScreen();
 
 ID3D11Buffer* createIndexDataBuffer(int* indexArray, int sizeInBytes);
 ID3D11Buffer* createVertexBuffer(vertex* vertexArray, int sizeInBytes);
+ID3D11Buffer** AllocateBuffers(int BufferCount, int min);
 
 void DrawMesh(ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, int indexBufferElements, vec3 pos);
 
