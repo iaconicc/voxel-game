@@ -18,8 +18,8 @@ typedef struct {
 	void* data;
 }ChunkJob;
 
-#define MAXWORKERTHREADS 6
-#define MAXJOBS 1000
+#define MAXWORKERTHREADS 8
+#define MAXJOBS 8096
 HANDLE WorkerThreads[MAXWORKERTHREADS];
 FIFO* JobQueue = NULL;
 
@@ -28,8 +28,8 @@ CRITICAL_SECTION JobQueueMutex;
 
 bool ThreadPoolRunning = true;
 
-#define ViewDistance 32
-#define WORLDSIZEINCHUNKS 128
+#define ViewDistance 8
+#define WORLDSIZEINCHUNKS 64
 #define WORLDSIZEINBLOCKS WORLDSIZEINCHUNKS * CHUNK_SIZE
 
 Chunk chunk;
@@ -151,33 +151,42 @@ static DWORD WINAPI WorldThread() {
 
 static bool BlockIsInWorld(int x, int y, int z) {
 	return x >= 0 && x < WORLDSIZEINBLOCKS &&
-		y >= 0 && y < CHUNK_SIZEV &&
+		y < CHUNK_SIZEV &&
 		z >= 0 && z < WORLDSIZEINBLOCKS;
 }
+
+#define CLAMP(x, min, max) ((x) < (min) ? (min) : ((x) > (max) ? (max) : (x)))
 
 void GetBlock(Block* block,int x, int y, int z){
 	if (!BlockIsInWorld(x, y, z)){
 		block->blockstate = UnsetBLOCKSOLID(block->blockstate);
 		return;
-	}else{
-		block->blockstate = SetBLOCKSOLID(block->blockstate);
 	}
+	else {
 
-	if (y == 0)
-	{
-		block->blockID = 4;
-	}
-	if (y > 0)
-	{
-		block->blockID = 0;
-	}
-	if (y > CHUNK_SIZEV - 5)
-	{
-		block->blockID = 1;
-	}
-	if (y == CHUNK_SIZEV - 1)
-	{
-		block->blockID = 2;
+		if(y == 0){
+			block->blockstate = SetBLOCKSOLID(block->blockstate);
+			block->blockID = 4;
+			return;
+		}
+
+		float r = sqrtf(x * x + z * z);
+		float val = sin(r * 0.1f) + sin((x + z) * 0.1f);
+		int sinx = CLAMP((int)(CHUNK_SIZEV * 0.25f * (2 + val)), 1, CHUNK_SIZEV - 1);
+
+		if (y <= sinx) {
+			if (y == sinx){
+				block->blockID = 2;
+			}
+			else if(y >= (sinx-5)){
+				block->blockID = 1;
+			}
+			block->blockstate = SetBLOCKSOLID(block->blockstate);
+		}
+		else {
+			block->blockstate = UnsetBLOCKSOLID(block->blockstate);
+		}
+
 	}
 }
 
@@ -223,7 +232,7 @@ HANDLE StartWorld()
 
 	chunkHashmap = hashmap_new(sizeof(Chunk), 1024, 0, 0, chunkHash, chunkCompare, chunkFree, NULL);
 
-	SetCamPos((vec3){(float)WORLDSIZEINBLOCKS /2, 33, (float)WORLDSIZEINBLOCKS / 2});
+	SetCamPos((vec3){0.0f, 128, 0.0f});
 	getCameraTargetAndPosition(&lastPlayerPos, NULL);
 	CheckViewDistance(lastPlayerPos);
 

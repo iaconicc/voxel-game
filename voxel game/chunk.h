@@ -20,6 +20,14 @@ typedef struct {
 	uint16_t blockstate;
 }Block;
 
+
+
+
+typedef struct{
+	uint64_t isSolid[(CHUNK_SIZE*CHUNK_SIZEV*CHUNK_SIZE)/64];
+	uint16_t BlockState[CHUNK_SIZE * CHUNK_SIZEV * CHUNK_SIZE];//first 10 bits represent a block id the following 2 bits are rotation values then 4 allowing 16 custom states;
+}ChunkState;
+
 typedef struct {
 	int x;
 	int z;

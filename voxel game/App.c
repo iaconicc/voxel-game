@@ -20,28 +20,28 @@ static void DoFrameLogic()
 	float delta = getFrameDelta();
 
 	if(keyIsPressed('W'))
-		MoveCameraForward(6.917 * delta);
+		MoveCameraForward(8.917 * delta);
 
 	if (keyIsPressed('S'))
-		MoveCameraBack(6.917 * delta);
+		MoveCameraBack(8.917 * delta);
 
 	if (keyIsPressed('A'))
-		StrafeCameraLeft(6.917 * delta);
+		StrafeCameraLeft(8.917 * delta);
 
 	if (keyIsPressed('D'))
-		StrafeCameraRight(6.917 * delta);
+		StrafeCameraRight(8.917 * delta);
 
 	if (keyIsPressed(VK_UP))
-		RotateCam(0, 25.0 * delta);
+		RotateCam(0, 35.0 * delta);
 
 	if (keyIsPressed(VK_DOWN))
-		RotateCam(0.0, -25.0 * delta);
+		RotateCam(0.0, -35.0 * delta);
 
 	if (keyIsPressed(VK_LEFT))
-		RotateCam(25.0 * delta, 0.0);
+		RotateCam(35.0 * delta, 0.0);
 
 	if (keyIsPressed(VK_RIGHT))
-		RotateCam(-25.0 * delta, 0.0);
+		RotateCam(-35.0 * delta, 0.0);
 
 	if (keyIsPressed(VK_F11))
 		toggleFullScreen();

@@ -87,7 +87,6 @@ static void populateVoxelMap(Chunk* chunk){
 		{
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
-				chunk->blocksState[x][y][z].blockstate = SetBLOCKSOLID(chunk->blocksState[x][y][z].blockstate);
 				GetBlock(&chunk->blocksState[x][y][z], x + (chunk->pos.x * CHUNK_SIZE), y, z + (chunk->pos.z * CHUNK_SIZE));
 			}
 		}
@@ -118,7 +117,7 @@ static bool checkVoxel(Chunk* chunk,vec3 pos)
 	return ISBLOCKSOLID(chunk->blocksState[x][y][z].blockstate);
 }
 
-static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex, int* currentIndexListIndex, vertex* vertexList, int* indexList)
+static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex, vertex* vertexList, int* indexList)
 {	
 		for (size_t f = 0; f < 6; f++)
 		{
@@ -177,14 +176,6 @@ static void addVoxelDataToChunk(Chunk* chunk, vec3 pos, int* currentVertexindex,
 					glm_vec2_copy(ScaledUV, vertexList[(*currentVertexindex)].texPos);
 					(*currentVertexindex)++;
 				}
-
-				//add indexes so that it connects the added vertexs in clockwise order
-				indexList[(*currentIndexListIndex)++] = baseIndex;
-				indexList[(*currentIndexListIndex)++] = baseIndex + 3;
-				indexList[(*currentIndexListIndex)++] = baseIndex + 2;
-				indexList[(*currentIndexListIndex)++] = baseIndex;
-				indexList[(*currentIndexListIndex)++] = baseIndex + 1;
-				indexList[(*currentIndexListIndex)++] = baseIndex + 3;
 			}
 		}
 }
@@ -202,6 +193,7 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 
 	chunk->mesh.IndexListSize = 0;
 	int vertexListSize = 0;
+	int faces = 0;
 
 	chunk->pos.x = chunkGen->x;
 	chunk->pos.z = chunkGen->z;
@@ -226,6 +218,7 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 						{
 							chunk->mesh.IndexListSize += 6;
 							vertexListSize += 4;
+							faces++;
 						}
 					}
 				}
@@ -236,8 +229,20 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 	//allocate memory enough for both indices and vertexes
 	int* indexList = calloc(chunk->mesh.IndexListSize,sizeof(int));
 	vertex* vertexList = calloc(vertexListSize,sizeof(vertex));
+	
+	int baseIndex = 0;
+	int currentIndexListIndex = 0;
+	for (int i = 0; i < faces; i++){
+		indexList[(currentIndexListIndex)++] = baseIndex;
+		indexList[(currentIndexListIndex)++] = baseIndex + 3;
+		indexList[(currentIndexListIndex)++] = baseIndex + 2;
+		indexList[(currentIndexListIndex)++] = baseIndex;
+		indexList[(currentIndexListIndex)++] = baseIndex + 1;
+		indexList[(currentIndexListIndex)++] = baseIndex + 3;
+		baseIndex += 4;
+	}
 
-	//LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexListSize, ((sizeof(vertex) * vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000));
+	//LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u %u", vertexListSize, ((sizeof(vertex) * vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000), faces);
 
 	int currentVertexindex = 0;
 	int currentIndexListindex = 0;
@@ -251,7 +256,7 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 				vec3 pos = { x, y, z};
 				if (checkVoxel(chunk,pos))
 				{
-					addVoxelDataToChunk(chunk, pos, &currentVertexindex, &currentIndexListindex, vertexList, indexList);
+					addVoxelDataToChunk(chunk, pos, &currentVertexindex, vertexList, indexList);
 				}
 			}
 		}

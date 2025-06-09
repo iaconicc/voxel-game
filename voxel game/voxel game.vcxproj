@@ -138,6 +138,7 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <AdditionalIncludeDirectories>$(SolutionDir)/includes/</AdditionalIncludeDirectories>
       <Optimization>MaxSpeed</Optimization>
+      <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
