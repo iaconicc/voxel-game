@@ -6,16 +6,16 @@ cbuffer TransformationBuff{
 
 struct VSOut
 {
-    float2 tex : TexCoord;
+    float2 textureCoords : TEXCOORD;
     float3 WorldPos : WORLDPOS;
     float4 pos : SV_Position;
 };
 
-VSOut main(float3 pos : POSITION, float2 tex : TexCoord)
+VSOut main(int4 pos : POSITION, uint texID : TEXMETA)
 {
     VSOut vso;
-    //expand to 4 floats
-    float4 worldpos = float4(pos.x, pos.y, pos.z, 1.0f);
+   
+    float4 worldpos = float4(float3(pos.xyz) - 0.5f, 1.0f);
     
     //translate to world space
     worldpos = mul(worldpos, transform);
@@ -25,8 +25,24 @@ VSOut main(float3 pos : POSITION, float2 tex : TexCoord)
     float4 viewspace = mul(worldpos, view);
     vso.pos = mul(viewspace, projection);
         
-    //add tex coord to output    
-    vso.tex = tex;
+    //calculate tex coords
+    
+    //extracting local uv from top 2 bits of texID
+    uint textureID = texID & 0x3FFF;
+    uint uvBits = texID >> 14;
+    float2 localUV = float2(uvBits & 1, (uvBits>>1) & 1);
+    
+    //scale down the uv to one block of the texture atlas   
+    float2 scaledUV = localUV * 0.25f;
+    
+    //calculate offsets on atlas
+    float tileX = textureID % (uint) 4;
+    float tileY = textureID / (uint) 4;
+    
+    //add offsets to scaled offsets
+    float2 uvOffsets = float2(tileX * 0.25, tileY * 0.25) + scaledUV;
+    
+    vso.textureCoords = uvOffsets;
     
     return vso;
 }

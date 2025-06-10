@@ -55,7 +55,7 @@ FogConstants fog = {
 	{0.0f, 0.0f, 0.0f, 0.0f},
 	{0.0f, 0.0f, 0.0f},
 	0.45f,
-	200.0f,
+	400.0f,
 };
 ID3D11Buffer* FogConstantBuffer = NULL;
 
@@ -458,9 +458,10 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	DXFUNCTIONFAILED(device->lpVtbl->CreateVertexShader(device, vertexShaderBlob->lpVtbl->GetBufferPointer(vertexShaderBlob), vertexShaderBlob->lpVtbl->GetBufferSize(vertexShaderBlob), NULL, &vertexShader));
 
 	//create and bind input layout
-	const D3D11_INPUT_ELEMENT_DESC ied[] = {
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"TexCoord", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+	D3D11_INPUT_ELEMENT_DESC ied[] = {
+		{ "POSITION", 0, DXGI_FORMAT_R8G8B8A8_SINT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXMETA",  0, DXGI_FORMAT_R16_UINT,      0, 4, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXPLANE", 0, DXGI_FORMAT_R8_UINT,       0, 6, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	DXFUNCTIONFAILED(device->lpVtbl->CreateInputLayout(device, &ied, 2, vertexShaderBlob->lpVtbl->GetBufferPointer(vertexShaderBlob), vertexShaderBlob->lpVtbl->GetBufferSize(vertexShaderBlob), &inputLayout));
 

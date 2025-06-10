@@ -5,12 +5,14 @@
 #include <cglm.h>
 #include <stdint.h>
 
-typedef struct {
-	uint8_t x;
-	uint8_t y;
-	uint8_t z;
-	uint16_t texPlane;
-	uint16_t texID;
+typedef struct{
+	int8_t x;
+	int8_t y;
+	int8_t z;
+	int8_t w;
+	uint16_t texID; // we'll use the upper two bits to encode a local uv as either 1 or 0 for u and v respectivly
+	uint8_t texPlane;
+	uint8_t rotation;
 }vertex;
 
 void UpdateOnResize(int width, int height);

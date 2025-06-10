@@ -16,12 +16,12 @@ float calculateExpfogFactor(float3 worldPos)
     return fogFactor;
 }
 
-float4 main(float2 tc : TexCoord, float3 WorldPos : WORLDPOS) : SV_TARGET
+float4 main(float2 textureCoords : TEXCOORD, float3 WorldPos : WORLDPOS) : SV_TARGET
 {   
-    float4 tempColour = tex.Sample(sample, tc);
+    float4 tempcolour = tex.Sample(sample, textureCoords);
     
     float fogFactor = calculateExpfogFactor(WorldPos);
-    tempColour = lerp(fogcolour, tempColour, fogFactor);
+    tempcolour = lerp(fogcolour, tempcolour, fogFactor);
     
-    return tempColour;
+    return tempcolour;
 }

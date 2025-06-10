@@ -3,7 +3,7 @@
 #include <cglm.h>
 
 #define CHUNK_SIZE  16
-#define CHUNK_SIZEV 255
+#define CHUNK_SIZEV 128
 
 #define ISBLOCKSOLID(blockstate) (blockstate & 1)
 #define SetBLOCKSOLID(blockstate) ((blockstate & 1) | 1)
