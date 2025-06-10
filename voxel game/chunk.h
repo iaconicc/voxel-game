@@ -3,7 +3,7 @@
 #include <cglm.h>
 
 #define CHUNK_SIZE  16
-#define CHUNK_SIZEV 64
+#define CHUNK_SIZEV 255
 
 #define ISBLOCKSOLID(blockstate) (blockstate & 1)
 #define SetBLOCKSOLID(blockstate) ((blockstate & 1) | 1)
@@ -19,9 +19,6 @@ typedef struct {
 	uint16_t blockID;
 	uint16_t blockstate;
 }Block;
-
-
-
 
 typedef struct{
 	uint64_t isSolid[(CHUNK_SIZE*CHUNK_SIZEV*CHUNK_SIZE)/64];

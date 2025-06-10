@@ -6,8 +6,11 @@
 #include <stdint.h>
 
 typedef struct {
-	vec3 pos;
-	vec2 texPos;
+	uint8_t x;
+	uint8_t y;
+	uint8_t z;
+	uint16_t texPlane;
+	uint16_t texID;
 }vertex;
 
 void UpdateOnResize(int width, int height);
@@ -15,7 +18,13 @@ void toggleFullScreen();
 
 ID3D11Buffer* createIndexDataBuffer(int* indexArray, int sizeInBytes);
 ID3D11Buffer* createVertexBuffer(vertex* vertexArray, int sizeInBytes);
-ID3D11Buffer** AllocateBuffers(int BufferCount, int min);
+
+typedef struct {
+	ID3D11Buffer** vertexBuffer;
+	ID3D11Buffer** indexBuffer;
+}AllocatedBuffers;
+
+AllocatedBuffers AllocateBuffers(int BufferCount, int vertexMin, int indexMin);
 
 void DrawMesh(ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, int indexBufferElements, vec3 pos);
 

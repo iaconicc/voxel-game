@@ -551,21 +551,25 @@ ID3D11Buffer* createVertexBuffer(vertex* vertexArray, int sizeInBytes)
 	return vertexBuffer;
 }
 
-
 typedef struct {
-	ID3D11Buffer** vertexBuffer;
-	ID3D11Buffer** indexBuffer;
-}AllocatedBuffers;
+	int vertexBufferInBytes;
+	int indexBufferElements;
+	ID3D11Buffer* vertexBuffer;
+	ID3D11Buffer* indexBuffer;
+}GPUBuffer;
+
+typedef struct{
+	GPUBuffer* BufferList;
+	int BufferCount;
+	int BufferMinSize;
+};
 
 AllocatedBuffers AllocateBuffers(int BufferCount, int vertexMin, int indexMin){
 	ID3D11Buffer** AllocatedVertexBuffers = malloc(sizeof(ID3D11Buffer*) * BufferCount);
 	ID3D11Buffer** AllocatedIndexBuffers = malloc(sizeof(ID3D11Buffer*) * BufferCount);
 	if(!AllocatedVertexBuffers || !AllocatedIndexBuffers){
-		if(AllocatedVertexBuffers){
-			free(AllocatedVertexBuffers);
-		}else if(AllocatedIndexBuffers){
-			free(AllocatedIndexBuffers);
-		}
+		if(AllocatedVertexBuffers)free(AllocatedVertexBuffers);
+		if(AllocatedIndexBuffers)free(AllocatedIndexBuffers);
 		
 		AllocatedBuffers buffers = {0};
 		return buffers;

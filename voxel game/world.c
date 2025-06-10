@@ -172,13 +172,13 @@ void GetBlock(Block* block,int x, int y, int z){
 
 		float r = sqrtf(x * x + z * z);
 		float val = sin(r * 0.1f) + sin((x + z) * 0.1f);
-		int sinx = CLAMP((int)(CHUNK_SIZEV * 0.25f * (2 + val)), 32, CHUNK_SIZEV - 1);
+		int sinx = CLAMP((int)(CHUNK_SIZEV * 0.25f * (2 + val)), 64, 150);
 
 		if (y <= sinx) {
 			if (y == sinx){
 				block->blockID = 2;
 			}
-			else if(y >= (sinx-5)){
+			else if(y >= (sinx-64)){
 				block->blockID = 1;
 			}
 			block->blockstate = SetBLOCKSOLID(block->blockstate);
