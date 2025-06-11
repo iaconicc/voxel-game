@@ -34,14 +34,15 @@ typedef struct {
 	Block blocksState[CHUNK_SIZE][CHUNK_SIZEV][CHUNK_SIZE];
 	chunkMesh mesh;
 	chunkPos pos;
-	int activeID;
 }Chunk;
 
 typedef struct {
-	struct hashmap* hash;
+	ChunkBuffers* chunkBuffers;
 	CRITICAL_SECTION* criticalSection;
 	int x;
 	int z;
+	int ActiveX;
+	int ActiveZ;
 }chunkGenData;
 
 DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen);

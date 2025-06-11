@@ -91,7 +91,9 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 		}
 		DoFrameLogic();
 		DrawChunks();
+		EnterCriticalSection(getActiveListCriticalSection());
 		EndFrame();
+		LeaveCriticalSection(getActiveListCriticalSection());
 
 #ifdef _DEBUG
 		logDXMessages();

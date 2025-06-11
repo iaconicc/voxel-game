@@ -12,4 +12,4 @@ HANDLE StartWorld();
 void GetBlock(Block* block, int x, int y, int z);
 
 void DrawChunks();
-CRITICAL_SECTION* getChunkmapMutex();
+CRITICAL_SECTION* getActiveListCriticalSection();

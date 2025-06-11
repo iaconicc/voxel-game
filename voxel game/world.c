@@ -8,8 +8,8 @@
 #define MODULE L"WORLD"
 #include "Logger.h"
 
-struct hashmap* chunkHashmap;
-CRITICAL_SECTION chunkmapMutex;
+CRITICAL_SECTION activeListMutex;
+ChunkBuffers* activeList;
 
 typedef (*JobFunction)(void* data);
 
@@ -29,6 +29,9 @@ CRITICAL_SECTION JobQueueMutex;
 bool ThreadPoolRunning = true;
 
 #define ViewDistance 8
+#define ACTIVE_GRID_SIZE (2 * ViewDistance)
+#define BUFFER_INDEX(x, z) ((ACTIVE_GRID_SIZE * (x)) + (z))
+
 #define WORLDSIZEINCHUNKS 128
 #define WORLDSIZEINBLOCKS WORLDSIZEINCHUNKS * CHUNK_SIZE
 
@@ -66,15 +69,21 @@ static void CheckViewDistance(vec3 pos){
 	for (int x = Chunkx - ViewDistance; x < Chunkx + ViewDistance; x++){
 		for (int z = Chunkz - ViewDistance; z < Chunkz + ViewDistance; z++){
 			if (ChunkIsInWorld(x, z)){
-				chunk.pos.x = x;
-				chunk.pos.z = z;
-				Chunk* existingChunk;
-				if (!(existingChunk = hashmap_get(chunkHashmap, &chunk))){
-					chunkGenData* genData = calloc(1,sizeof(chunkGenData));
-					genData->criticalSection = &chunkmapMutex;
-					genData->hash = chunkHashmap;
+				int localX = x - (Chunkx - ViewDistance);
+				int localZ = z - (Chunkz - ViewDistance);
+				int index = BUFFER_INDEX(localX, localZ);
+				if (activeList->BufferList[index].x != x || activeList->BufferList[index].z != z) {
+					activeList->BufferList[index].inUse = false;
+				}
+
+				if (!activeList->BufferList[index].inUse) {
+					chunkGenData* genData = calloc(1, sizeof(chunkGenData));
+					genData->criticalSection = &activeListMutex;
+					genData->chunkBuffers = activeList;
 					genData->x = x;
 					genData->z = z;
+					genData->ActiveX = localX;
+					genData->ActiveZ = localZ;
 					QueueChunkJob(RunChunkGen, genData);
 				}
 			}
@@ -143,9 +152,9 @@ static DWORD WINAPI WorldThread() {
 	}
 
 	DeleteCriticalSection(&JobQueueMutex);
-	DeleteCriticalSection(&chunkmapMutex);
+	DeleteCriticalSection(&activeListMutex);
 	DestroyFIFO(&JobQueue);
-	hashmap_free(chunkHashmap);
+	ReleaseChunkBuffers(activeList);
 	return 0;
 }
 
@@ -190,37 +199,9 @@ void GetBlock(Block* block,int x, int y, int z){
 	}
 }
 
-static uint64_t chunkHash(const void* item, uint64_t seed0, uint64_t seed1) {
-    Chunk* chunk = (Chunk*)item;  
-    return hashmap_sip((const void*)&chunk->pos, sizeof(chunkPos), seed0, seed1);  
-}
-
-static int chunkCompare(const void* a, const void* b, void* udata)
-{
-	const Chunk* chunkA = (Chunk*) a;
-	const Chunk* chunkB = (Chunk*) b;
-	return memcmp((const void*) &chunkA->pos, (const void*) &chunkB->pos, sizeof(chunkPos));
-}
-
-static void chunkFree(void* item)
-{
-	const Chunk* chunk = (Chunk*) item;
-	if (chunk->mesh.indexBuffer){
-		chunk->mesh.indexBuffer->lpVtbl->Release(chunk->mesh.indexBuffer);
-	}
-	if (chunk->mesh.vertexBuffer){
-		chunk->mesh.vertexBuffer->lpVtbl->Release(chunk->mesh.vertexBuffer);
-	}
-}
-
-CRITICAL_SECTION* getChunkmapMutex()
-{
-	return &chunkmapMutex;
-}
-
 HANDLE StartWorld()
 {
-	InitializeCriticalSection(&chunkmapMutex);
+	InitializeCriticalSection(&activeListMutex);
 	InitializeCriticalSection(&JobQueueMutex);
 	InitializeConditionVariable(&WorkerSleepCondition);
 	InitFIFO(&JobQueue, MAXJOBS, sizeof(ChunkJob));
@@ -230,7 +211,7 @@ HANDLE StartWorld()
 		WorkerThreads[i] = CreateThread(0, 0, ChunkJobWorkerTheads, NULL, 0, NULL);
 	}
 
-	chunkHashmap = hashmap_new(sizeof(Chunk), 1024, 0, 0, chunkHash, chunkCompare, chunkFree, NULL);
+	activeList = AllocateChunkBuffers(ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE, 200*1000, 100*1000);
 
 	SetCamPos((vec3){0.0f, 128, 0.0f});
 	getCameraTargetAndPosition(&lastPlayerPos, NULL);
@@ -243,18 +224,21 @@ HANDLE StartWorld()
 	return handle;
 }
 
+CRITICAL_SECTION* getActiveListCriticalSection(){
+	return &activeListMutex;
+}
+
 void DrawChunks()
-{
-	if (chunkHashmap) {
-		Chunk* chunk = NULL;
-		size_t i = 0;
-		
-		EnterCriticalSection(&chunkmapMutex);
-		while (hashmap_iter(chunkHashmap, &i, &chunk)) {
-				vec3 pos = { ((float)(chunk->pos.x)) * (float) CHUNK_SIZE, 0.0f, ((float)(chunk->pos.z)) * (float) CHUNK_SIZE};
-				DrawMesh(chunk->mesh.vertexBuffer, chunk->mesh.indexBuffer, chunk->mesh.IndexListSize, pos);
-		};
-		LeaveCriticalSection(&chunkmapMutex);
-	}
+{		
+		for (int x = 0; x < ACTIVE_GRID_SIZE; x++) {
+			for (int z = 0; z < ACTIVE_GRID_SIZE; z++) {
+				EnterCriticalSection(&activeListMutex);
+				if (activeList->BufferList[BUFFER_INDEX(x, z)].inUse) {
+					GPUBuffer* buffer = &activeList->BufferList[BUFFER_INDEX(x, z)];
+					DrawMesh(buffer->vertexBuffer, buffer->indexBuffer, buffer->indexBufferElements, (vec3){buffer->x*CHUNK_SIZE,0.0f, buffer->z*CHUNK_SIZE});
+				}
+				LeaveCriticalSection(&activeListMutex);
+			}
+		}	
 }
 

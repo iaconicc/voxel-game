@@ -556,8 +556,11 @@ ChunkBuffers* AllocateChunkBuffers(int BufferCount, int vertexMin, int indexMin)
 	ChunkBuffers* RenderList = malloc(sizeof(ChunkBuffers));
 	if (!RenderList) return NULL;
 
-	RenderList->BufferList = malloc(sizeof(GPUBuffer) * BufferCount);
-	if (!RenderList->BufferList) return NULL;
+	RenderList->BufferList = calloc(BufferCount, sizeof(GPUBuffer));
+	if (!RenderList->BufferList) { 
+	free(RenderList); 
+	return NULL; 
+	}
 
 	D3D11_BUFFER_DESC ibd = { 0 };
 	ibd.ByteWidth = indexMin;
@@ -584,6 +587,8 @@ ChunkBuffers* AllocateChunkBuffers(int BufferCount, int vertexMin, int indexMin)
 				RenderList->BufferList[j].vertexBuffer->lpVtbl->Release(RenderList->BufferList[j].vertexBuffer);
 				RenderList->BufferList[j].indexBuffer->lpVtbl->Release(RenderList->BufferList[j].indexBuffer);
 			}
+			free(RenderList->BufferList);
+			free(RenderList);
 			return NULL;
 		};
 		if ((((HRESULT)(hr = (device->lpVtbl->CreateBuffer(device, &ibd, ((void*)0), &RenderList->BufferList[i].indexBuffer)))) < 0)) {
@@ -592,13 +597,44 @@ ChunkBuffers* AllocateChunkBuffers(int BufferCount, int vertexMin, int indexMin)
 				RenderList->BufferList[j].vertexBuffer->lpVtbl->Release(RenderList->BufferList[j].vertexBuffer);
 				RenderList->BufferList[j].indexBuffer->lpVtbl->Release(RenderList->BufferList[j].indexBuffer);
 			}
+			free(RenderList->BufferList);
+			free(RenderList);
 			return NULL;
 		};
 	}
 
+	RenderList->BufferCount = BufferCount;
+	RenderList->BufferVertexMinSize = vertexMin;
+	RenderList->BufferIndexMinSize = indexMin;
+	RenderList->totalIndexBufferSizeInBytes = indexMin * BufferCount;
+	RenderList->totalVertexBufferSizeInBytes = vertexMin * BufferCount;
 	return RenderList;
 }
 
+void updateBuffer(GPUBuffer* buffer, vertex* vertexs, int* indices){
+	HRESULT hr;
+	WCHAR* msg;
+
+	D3D11_MAPPED_SUBRESOURCE VertexMap = {0};
+	D3D11_MAPPED_SUBRESOURCE IndexMap =  {0};
+	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, buffer->vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &VertexMap));
+	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, buffer->indexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &IndexMap));
+
+	memcpy(VertexMap.pData, vertexs, buffer->vertexBufferInBytes);
+	memcpy(IndexMap.pData, indices, buffer->indexBufferElements * sizeof(int));
+
+	deviceContext->lpVtbl->Unmap(deviceContext, buffer->vertexBuffer, 0);
+	deviceContext->lpVtbl->Unmap(deviceContext, buffer->indexBuffer, 0);
+}
+
+void ReleaseChunkBuffers(ChunkBuffers* buffers){
+	if (!buffers) return;
+	for (size_t i = 0; i < buffers->BufferCount; i++){
+		buffers->BufferList[i].vertexBuffer->lpVtbl->Release(buffers->BufferList[i].vertexBuffer);
+		buffers->BufferList[i].indexBuffer->lpVtbl->Release(buffers->BufferList[i].indexBuffer);
+	}
+	free(buffers);
+}
 
 
 ID3D11Buffer* createIndexDataBuffer(int* indexArray, int sizeInBytes)
