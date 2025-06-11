@@ -552,60 +552,54 @@ ID3D11Buffer* createVertexBuffer(vertex* vertexArray, int sizeInBytes)
 	return vertexBuffer;
 }
 
-typedef struct {
-	int vertexBufferInBytes;
-	int indexBufferElements;
-	ID3D11Buffer* vertexBuffer;
-	ID3D11Buffer* indexBuffer;
-}GPUBuffer;
+ChunkBuffers* AllocateChunkBuffers(int BufferCount, int vertexMin, int indexMin){
+	ChunkBuffers* RenderList = malloc(sizeof(ChunkBuffers));
+	if (!RenderList) return NULL;
 
-typedef struct{
-	GPUBuffer* BufferList;
-	int BufferCount;
-	int BufferMinSize;
-};
-
-AllocatedBuffers AllocateBuffers(int BufferCount, int vertexMin, int indexMin){
-	ID3D11Buffer** AllocatedVertexBuffers = malloc(sizeof(ID3D11Buffer*) * BufferCount);
-	ID3D11Buffer** AllocatedIndexBuffers = malloc(sizeof(ID3D11Buffer*) * BufferCount);
-	if(!AllocatedVertexBuffers || !AllocatedIndexBuffers){
-		if(AllocatedVertexBuffers)free(AllocatedVertexBuffers);
-		if(AllocatedIndexBuffers)free(AllocatedIndexBuffers);
-		
-		AllocatedBuffers buffers = {0};
-		return buffers;
-	}
+	RenderList->BufferList = malloc(sizeof(GPUBuffer) * BufferCount);
+	if (!RenderList->BufferList) return NULL;
 
 	D3D11_BUFFER_DESC ibd = { 0 };
 	ibd.ByteWidth = indexMin;
-	ibd.Usage = D3D11_USAGE_DEFAULT;
+	ibd.Usage = D3D11_USAGE_DYNAMIC;
 	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	ibd.CPUAccessFlags = 0;
+	ibd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	ibd.MiscFlags = 0;
 	ibd.StructureByteStride = sizeof(int);
 
 	D3D11_BUFFER_DESC vbd = { 0 };
 	vbd.ByteWidth = vertexMin;
-	vbd.Usage = D3D11_USAGE_DEFAULT;
+	vbd.Usage = D3D11_USAGE_DYNAMIC;
 	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vbd.CPUAccessFlags = 0;
+	vbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	vbd.MiscFlags = 0;
 	vbd.StructureByteStride = sizeof(vertex);
 
 	HRESULT hr;
 	WCHAR* msg;
 	for (int i = 0; i < BufferCount; i++){
-		DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &vbd, NULL, &AllocatedVertexBuffers[i]));
-		DXFUNCTIONFAILED(device->lpVtbl->CreateBuffer(device, &ibd, NULL, &AllocatedIndexBuffers[i]));
+		if ((((HRESULT)(hr = (device->lpVtbl->CreateBuffer(device, &vbd, ((void*)0), &RenderList->BufferList[i].vertexBuffer)))) < 0)) {
+			logDXMessages(); PostQuitMessage(hr); msg = formatWin32ErrorCodes(hr); __LogException(L"C:\\Users\\rehob\\source\\repos\\voxel game\\voxel game\\DX3D11.c", 596, L"DX3D11", msg); free(msg); 
+			for (size_t j = 0; j < i; j++){
+				RenderList->BufferList[j].vertexBuffer->lpVtbl->Release(RenderList->BufferList[j].vertexBuffer);
+				RenderList->BufferList[j].indexBuffer->lpVtbl->Release(RenderList->BufferList[j].indexBuffer);
+			}
+			return NULL;
+		};
+		if ((((HRESULT)(hr = (device->lpVtbl->CreateBuffer(device, &ibd, ((void*)0), &RenderList->BufferList[i].indexBuffer)))) < 0)) {
+			logDXMessages(); PostQuitMessage(hr); msg = formatWin32ErrorCodes(hr); __LogException(L"C:\\Users\\rehob\\source\\repos\\voxel game\\voxel game\\DX3D11.c", 597, L"DX3D11", msg); free(msg); 
+			for (size_t j = 0; j < i; j++) {
+				RenderList->BufferList[j].vertexBuffer->lpVtbl->Release(RenderList->BufferList[j].vertexBuffer);
+				RenderList->BufferList[j].indexBuffer->lpVtbl->Release(RenderList->BufferList[j].indexBuffer);
+			}
+			return NULL;
+		};
 	}
 
-	AllocatedBuffers buffers = {
-	.indexBuffer = AllocatedIndexBuffers,
-	.vertexBuffer = AllocatedVertexBuffers,
-	};
-
-	return buffers;
+	return RenderList;
 }
+
+
 
 ID3D11Buffer* createIndexDataBuffer(int* indexArray, int sizeInBytes)
 {

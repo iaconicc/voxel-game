@@ -49,7 +49,7 @@ static void DoFrameLogic()
 
 static void WINAPI FPSThread(){
 	while (running){
-		Sleep(250);
+		Sleep(100);
 		vec3 pos;
 		getCameraTargetAndPosition(&pos, NULL);
 		WCHAR formatedTitle[200];

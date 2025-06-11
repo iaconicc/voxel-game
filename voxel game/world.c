@@ -28,7 +28,7 @@ CRITICAL_SECTION JobQueueMutex;
 
 bool ThreadPoolRunning = true;
 
-#define ViewDistance 64
+#define ViewDistance 8
 #define WORLDSIZEINCHUNKS 128
 #define WORLDSIZEINBLOCKS WORLDSIZEINCHUNKS * CHUNK_SIZE
 
@@ -172,13 +172,13 @@ void GetBlock(Block* block,int x, int y, int z){
 
 		float r = sqrtf(x * x + z * z);
 		float val = sin(r * 0.1f) + sin((x + z) * 0.1f);
-		int sinx = CLAMP((int)(CHUNK_SIZEV * 0.25f * (2 + val)), 32, 100);
+		int sinx = CLAMP((int)(CHUNK_SIZEV * 0.25f * (2 + val)), 32, 126);
 
 		if (y <= sinx) {
 			if (y == sinx){
 				block->blockID = 2;
 			}
-			else if(y >= (sinx-32)){
+			else if(y >= (sinx-64)){
 				block->blockID = 1;
 			}
 			block->blockstate = SetBLOCKSOLID(block->blockstate);

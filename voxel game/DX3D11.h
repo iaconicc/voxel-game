@@ -21,12 +21,23 @@ void toggleFullScreen();
 ID3D11Buffer* createIndexDataBuffer(int* indexArray, int sizeInBytes);
 ID3D11Buffer* createVertexBuffer(vertex* vertexArray, int sizeInBytes);
 
-typedef struct {
-	ID3D11Buffer** vertexBuffer;
-	ID3D11Buffer** indexBuffer;
-}AllocatedBuffers;
 
-AllocatedBuffers AllocateBuffers(int BufferCount, int vertexMin, int indexMin);
+typedef struct {
+	int Rx, Ry;
+	int x, y, z;
+	int vertexBufferInBytes;
+	int indexBufferElements;
+	ID3D11Buffer* vertexBuffer;
+	ID3D11Buffer* indexBuffer;
+}GPUBuffer;
+
+typedef struct {
+	GPUBuffer* BufferList;
+	int BufferCount;
+	int BufferMinSize;
+}ChunkBuffers;
+
+ChunkBuffers* AllocateChunkBuffers(int BufferCount, int vertexMin, int indexMin);
 
 void DrawMesh(ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, int indexBufferElements, vec3 pos);
 
