@@ -160,7 +160,7 @@ static void addVoxelDataToChunk(Chunk* chunk, ChunkBlockOffset pos, int* current
 DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 {
 	ChunkBuffers* ActiveChunks= chunkGen->chunkBuffers;
-	GPUBuffer* buffer = &ActiveChunks->BufferList[((8*2)*chunkGen->ActiveX)+chunkGen->ActiveZ];
+	GPUBuffer* buffer = &ActiveChunks->BufferList[chunkGen->ActiveIndex];
 	CRITICAL_SECTION* mutex = chunkGen->criticalSection;
 	
 	Chunk* chunk = calloc(1, sizeof(Chunk));
@@ -216,7 +216,7 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 		indexList[i * 6 + 5] = base + 3;
 	}
 
-	LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexListSize, ((sizeof(vertex) * vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000));
+	//LogDebug(L"vertexs: %u Bytes: %u indexes: %u Bytes: %u", vertexListSize, ((sizeof(vertex) * vertexListSize)/1000), chunk->mesh.IndexListSize, ((sizeof(int) * chunk->mesh.IndexListSize)/1000));
 
 	int currentVertexindex = 0;
 	int currentIndexListindex = 0;
@@ -238,14 +238,12 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 
 
 	EnterCriticalSection(mutex);
-	if (!buffer->inUse) {
-		buffer->indexBufferElements = chunk->mesh.IndexListSize;
-		buffer->vertexBufferInBytes = vertexListSize*sizeof(vertex);
-		buffer->x = chunk->pos.x;
-		buffer->z = chunk->pos.z;
-		updateBuffer(buffer, vertexList, indexList);
-		buffer->inUse = true;
-	}
+	buffer->indexBufferElements = chunk->mesh.IndexListSize;
+	buffer->vertexBufferInBytes = vertexListSize*sizeof(vertex);
+	buffer->x = chunk->pos.x;
+	buffer->z = chunk->pos.z;
+	updateBuffer(buffer, vertexList, indexList);
+	buffer->inUse = true;
 	LeaveCriticalSection(mutex);
 
 	free(indexList);

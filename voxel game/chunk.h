@@ -41,8 +41,7 @@ typedef struct {
 	CRITICAL_SECTION* criticalSection;
 	int x;
 	int z;
-	int ActiveX;
-	int ActiveZ;
+	int ActiveIndex;
 }chunkGenData;
 
 DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen);

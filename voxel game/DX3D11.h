@@ -28,6 +28,7 @@ typedef struct {
 	int vertexBufferInBytes;
 	int indexBufferElements;
 	bool inUse;
+	CRITICAL_SECTION bufferMutex;
 	ID3D11Buffer* vertexBuffer;
 	ID3D11Buffer* indexBuffer;
 }GPUBuffer;
@@ -43,6 +44,7 @@ typedef struct {
 
 ChunkBuffers* AllocateChunkBuffers(int BufferCount, int vertexMin, int indexMin);
 void updateBuffer(GPUBuffer* buffer, vertex* vertexs, int* indices);
+void copyBuffer(ID3D11Buffer* destination, ID3D11Buffer* source);
 void ReleaseChunkBuffers(ChunkBuffers* buffers);
 
 void DrawMesh(ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, int indexBufferElements, vec3 pos);

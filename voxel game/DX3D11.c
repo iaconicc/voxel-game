@@ -627,6 +627,10 @@ void updateBuffer(GPUBuffer* buffer, vertex* vertexs, int* indices){
 	deviceContext->lpVtbl->Unmap(deviceContext, buffer->indexBuffer, 0);
 }
 
+void copyBuffer(ID3D11Buffer* destination, ID3D11Buffer* source) {
+	deviceContext->lpVtbl->CopyResource(deviceContext, destination, source);
+}
+
 void ReleaseChunkBuffers(ChunkBuffers* buffers){
 	if (!buffers) return;
 	for (size_t i = 0; i < buffers->BufferCount; i++){

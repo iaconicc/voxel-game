@@ -11,6 +11,15 @@
 CRITICAL_SECTION activeListMutex;
 ChunkBuffers* activeList;
 
+typedef struct {
+	int x;
+	int z;
+	bool Active;
+}ChunksCheck;
+
+ChunksCheck* ChunksToBeChecked;
+FIFO* AvailableSpacesOnActiveList;
+
 typedef (*JobFunction)(void* data);
 
 typedef struct {
@@ -28,14 +37,13 @@ CRITICAL_SECTION JobQueueMutex;
 
 bool ThreadPoolRunning = true;
 
-#define ViewDistance 8
+#define ViewDistance 16
 #define ACTIVE_GRID_SIZE (2 * ViewDistance)
 #define BUFFER_INDEX(x, z) ((ACTIVE_GRID_SIZE * (x)) + (z))
 
-#define WORLDSIZEINCHUNKS 128
+#define WORLDSIZEINCHUNKS 256
 #define WORLDSIZEINBLOCKS WORLDSIZEINCHUNKS * CHUNK_SIZE
 
-Chunk chunk;
 vec3 lastPlayerPos;
 
 inline static void GetChunkPosFromAbsolutePos(vec3 pos, int* x, int* z)
@@ -44,7 +52,7 @@ inline static void GetChunkPosFromAbsolutePos(vec3 pos, int* x, int* z)
 	*z =(int) floorf(pos[2] / CHUNK_SIZE);
 }
 
-static bool ChunkIsInWorld(int x, int z) {
+inline static bool ChunkIsInWorld(int x, int z) {
 	return x >= 0 && x < WORLDSIZEINCHUNKS && z >= 0 && z < WORLDSIZEINCHUNKS;
 }
 
@@ -53,7 +61,7 @@ static void RunChunkGen(void* data){
 	generateChunkMesh(ChunkGenData);//the data is freed on generateChunkMesh() please do not double free data
 }
 
-static void QueueChunkJob(JobFunction func, void* data){
+inline static void QueueChunkJob(JobFunction func, void* data){
 	ChunkJob job = {func, data};
 
 	EnterCriticalSection(&JobQueueMutex);
@@ -62,33 +70,75 @@ static void QueueChunkJob(JobFunction func, void* data){
 	LeaveCriticalSection(&JobQueueMutex);
 }
 
-static void CheckViewDistance(vec3 pos){
+inline static void GenerateWorld(vec3 pos) {
+	size_t sizeOfActiveList = 0;
 	int Chunkx = 0, Chunkz = 0;
 	GetChunkPosFromAbsolutePos(pos, &Chunkx, &Chunkz);
 
-	for (int x = Chunkx - ViewDistance; x < Chunkx + ViewDistance; x++){
-		for (int z = Chunkz - ViewDistance; z < Chunkz + ViewDistance; z++){
-			if (ChunkIsInWorld(x, z)){
-				int localX = x - (Chunkx - ViewDistance);
-				int localZ = z - (Chunkz - ViewDistance);
-				int index = BUFFER_INDEX(localX, localZ);
-				if (activeList->BufferList[index].x != x || activeList->BufferList[index].z != z) {
-					activeList->BufferList[index].inUse = false;
-				}
-
-				if (!activeList->BufferList[index].inUse) {
-					chunkGenData* genData = calloc(1, sizeof(chunkGenData));
-					genData->criticalSection = &activeListMutex;
-					genData->chunkBuffers = activeList;
-					genData->x = x;
-					genData->z = z;
-					genData->ActiveX = localX;
-					genData->ActiveZ = localZ;
-					QueueChunkJob(RunChunkGen, genData);
-				}
+	for (int x = Chunkx - ViewDistance; x < Chunkx + ViewDistance; x++) {
+		for (int z = Chunkz - ViewDistance; z < Chunkz + ViewDistance; z++) {
+			if (ChunkIsInWorld(x, z)) {
+				chunkGenData* genData = calloc(1, sizeof(chunkGenData));
+				genData->criticalSection = &activeListMutex;
+				genData->chunkBuffers = activeList;
+				genData->x = x;
+				genData->z = z;
+				genData->ActiveIndex = sizeOfActiveList;
+				QueueChunkJob(RunChunkGen, genData);
+				sizeOfActiveList++;
 			}
 		}
 	}
+}
+
+inline static void CheckViewDistance(int lastChunkPosX, int lastChunkPosZ, int currentChunkPosX, int currentChunkPosZ){
+	
+	size_t sizeOfChunksToBeChecked = 0;
+	//check for chunks within player view distance
+	for (int x = currentChunkPosX - ViewDistance; x < currentChunkPosX + ViewDistance; x++) {
+		for (int z = currentChunkPosZ - ViewDistance; z < currentChunkPosZ + ViewDistance; z++) {
+			if (ChunkIsInWorld(x,z)){
+				ChunksToBeChecked[sizeOfChunksToBeChecked].x = x;
+				ChunksToBeChecked[sizeOfChunksToBeChecked].z = z;
+				sizeOfChunksToBeChecked++;
+			}
+		}
+	}
+
+	// Iterate over all active grid positions to find available positions
+	for (size_t i = 0; i < (ACTIVE_GRID_SIZE * ACTIVE_GRID_SIZE); i++) {
+		bool match = false;
+
+		for (size_t j = 0; j < sizeOfChunksToBeChecked; j++) {
+			if (ChunksToBeChecked[j].x == activeList->BufferList[i].x &&
+				ChunksToBeChecked[j].z == activeList->BufferList[i].z) {
+				ChunksToBeChecked[j].Active = true;
+				match = true;
+				break;
+			}
+		}
+
+		if (!match) {
+			PushElement(&AvailableSpacesOnActiveList, &i);
+		}
+	}
+
+	for (size_t i = 0; i < sizeOfChunksToBeChecked; i++) {
+		if(!ChunksToBeChecked[i].Active){
+			chunkGenData* genData = calloc(1, sizeof(chunkGenData));
+			genData->criticalSection = &activeListMutex;
+			genData->chunkBuffers = activeList;
+			genData->x = ChunksToBeChecked[i].x;
+			genData->z = ChunksToBeChecked[i].z;
+			int* availablePtr = PopElement(&AvailableSpacesOnActiveList);
+			if (!availablePtr) break;
+			int available = *availablePtr;
+			genData->ActiveIndex = available;
+			QueueChunkJob(RunChunkGen, genData);
+		}
+	}
+
+	memset(ChunksToBeChecked, 0, sizeOfChunksToBeChecked * sizeof(ChunksCheck));
 }
 
 static DWORD WINAPI ChunkJobWorkerTheads(LPVOID param){
@@ -133,7 +183,7 @@ static DWORD WINAPI WorldThread() {
 			GetChunkPosFromAbsolutePos(currentPlayerPos, &Chunkx, &Chunkz);
 			
 			if (!(Chunkx == LastChunkx && Chunkz == LastChunkz)){
-				CheckViewDistance(currentPlayerPos);
+				CheckViewDistance(LastChunkx, LastChunkz, Chunkx, Chunkz);
 			}
 
 			glm_ivec3_copy(currentPlayerPos, lastPlayerPos);
@@ -154,7 +204,9 @@ static DWORD WINAPI WorldThread() {
 	DeleteCriticalSection(&JobQueueMutex);
 	DeleteCriticalSection(&activeListMutex);
 	DestroyFIFO(&JobQueue);
+	DestroyFIFO(&AvailableSpacesOnActiveList);
 	ReleaseChunkBuffers(activeList);
+	free(ChunksToBeChecked);
 	return 0;
 }
 
@@ -205,17 +257,19 @@ HANDLE StartWorld()
 	InitializeCriticalSection(&JobQueueMutex);
 	InitializeConditionVariable(&WorkerSleepCondition);
 	InitFIFO(&JobQueue, MAXJOBS, sizeof(ChunkJob));
-	
+
 	//Create worker threads
 	for (int i = 0; i < MAXWORKERTHREADS; i++){
 		WorkerThreads[i] = CreateThread(0, 0, ChunkJobWorkerTheads, NULL, 0, NULL);
 	}
 
-	activeList = AllocateChunkBuffers(ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE, 200*1000, 100*1000);
+	activeList = AllocateChunkBuffers(ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE, 200*1000, 150*1000);
+	ChunksToBeChecked = calloc(ACTIVE_GRID_SIZE * ACTIVE_GRID_SIZE, sizeof(ChunksCheck));
+	InitFIFO(&AvailableSpacesOnActiveList, ACTIVE_GRID_SIZE * ACTIVE_GRID_SIZE, sizeof(int));
 
-	SetCamPos((vec3){0.0f, 128, 0.0f});
+	SetCamPos((vec3){WORLDSIZEINBLOCKS/2, 65, WORLDSIZEINBLOCKS/2});
 	getCameraTargetAndPosition(&lastPlayerPos, NULL);
-	CheckViewDistance(lastPlayerPos);
+	GenerateWorld(lastPlayerPos);
 
 	//chunk generation thread
 	HANDLE handle;
