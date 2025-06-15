@@ -5,6 +5,9 @@
 #include "hashmap.h"
 #include "DX3D11.h"
 
+#define FNL_IMPL
+#include <FastNoiseLite.h>
+
 #define MODULE L"WORLD"
 #include "Logger.h"
 
@@ -41,8 +44,12 @@ bool ThreadPoolRunning = true;
 #define ACTIVE_GRID_SIZE (2 * ViewDistance)
 #define BUFFER_INDEX(x, z) ((ACTIVE_GRID_SIZE * (x)) + (z))
 
+#define MIN_SURFACE_HEIGHT  64.0f
+#define MAX_SURFACE_HEIGHT  126.0f
+
 #define WORLDSIZEINCHUNKS 256
 #define WORLDSIZEINBLOCKS WORLDSIZEINCHUNKS * CHUNK_SIZE
+fnl_state noise;
 
 vec3 lastPlayerPos;
 
@@ -231,15 +238,14 @@ void GetBlock(Block* block,int x, int y, int z){
 			return;
 		}
 
-		float r = sqrtf(x * x + z * z);
-		float val = sin(r * 0.1f) + sin((x + z) * 0.1f);
-		int sinx = CLAMP((int)(CHUNK_SIZEV * 0.25f * (2 + val)), 32, 126);
+		float val = fnlGetNoise2D(&noise, x, z);
+		int Surfaceheight = (int)(((val + 1.0f) * 0.5f) * (MAX_SURFACE_HEIGHT - MIN_SURFACE_HEIGHT) + MIN_SURFACE_HEIGHT);
 
-		if (y <= sinx) {
-			if (y == sinx){
+		if (y <= Surfaceheight) {
+			if (y == Surfaceheight){
 				block->blockID = 2;
 			}
-			else if(y >= (sinx-64)){
+			else if(y >= (Surfaceheight-5)){
 				block->blockID = 1;
 			}
 			block->blockstate = SetBLOCKSOLID(block->blockstate);
@@ -258,6 +264,15 @@ HANDLE StartWorld()
 	InitializeConditionVariable(&WorkerSleepCondition);
 	InitFIFO(&JobQueue, MAXJOBS, sizeof(ChunkJob));
 
+	noise = fnlCreateState();
+	noise.noise_type = FNL_NOISE_PERLIN;
+	noise.frequency = 0.01f;
+	noise.seed = rand();
+	noise.fractal_type = FNL_FRACTAL_FBM;
+	noise.octaves = 10;
+	noise.lacunarity = 2.0f;
+	noise.gain = 0.5f;
+
 	//Create worker threads
 	for (int i = 0; i < MAXWORKERTHREADS; i++){
 		WorkerThreads[i] = CreateThread(0, 0, ChunkJobWorkerTheads, NULL, 0, NULL);
@@ -267,7 +282,7 @@ HANDLE StartWorld()
 	ChunksToBeChecked = calloc(ACTIVE_GRID_SIZE * ACTIVE_GRID_SIZE, sizeof(ChunksCheck));
 	InitFIFO(&AvailableSpacesOnActiveList, ACTIVE_GRID_SIZE * ACTIVE_GRID_SIZE, sizeof(int));
 
-	SetCamPos((vec3){WORLDSIZEINBLOCKS/2, 65, WORLDSIZEINBLOCKS/2});
+	SetCamPos((vec3){WORLDSIZEINBLOCKS/2, 128, WORLDSIZEINBLOCKS/2});
 	getCameraTargetAndPosition(&lastPlayerPos, NULL);
 	GenerateWorld(lastPlayerPos);
 
