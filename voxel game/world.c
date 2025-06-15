@@ -47,8 +47,6 @@ bool ThreadPoolRunning = true;
 #define MIN_SURFACE_HEIGHT  64.0f
 #define MAX_SURFACE_HEIGHT  126.0f
 
-#define WORLDSIZEINCHUNKS 256
-#define WORLDSIZEINBLOCKS WORLDSIZEINCHUNKS * CHUNK_SIZE
 fnl_state noise;
 
 vec3 lastPlayerPos;
@@ -57,10 +55,6 @@ inline static void GetChunkPosFromAbsolutePos(vec3 pos, int* x, int* z)
 {
 	*x =(int) floorf(pos[0]/ CHUNK_SIZE);
 	*z =(int) floorf(pos[2] / CHUNK_SIZE);
-}
-
-inline static bool ChunkIsInWorld(int x, int z) {
-	return x >= 0 && x < WORLDSIZEINCHUNKS && z >= 0 && z < WORLDSIZEINCHUNKS;
 }
 
 static void RunChunkGen(void* data){
@@ -84,7 +78,6 @@ inline static void GenerateWorld(vec3 pos) {
 
 	for (int x = Chunkx - ViewDistance; x < Chunkx + ViewDistance; x++) {
 		for (int z = Chunkz - ViewDistance; z < Chunkz + ViewDistance; z++) {
-			if (ChunkIsInWorld(x, z)) {
 				chunkGenData* genData = calloc(1, sizeof(chunkGenData));
 				genData->criticalSection = &activeListMutex;
 				genData->chunkBuffers = activeList;
@@ -93,7 +86,6 @@ inline static void GenerateWorld(vec3 pos) {
 				genData->ActiveIndex = sizeOfActiveList;
 				QueueChunkJob(RunChunkGen, genData);
 				sizeOfActiveList++;
-			}
 		}
 	}
 }
@@ -104,11 +96,9 @@ inline static void CheckViewDistance(int lastChunkPosX, int lastChunkPosZ, int c
 	//check for chunks within player view distance
 	for (int x = currentChunkPosX - ViewDistance; x < currentChunkPosX + ViewDistance; x++) {
 		for (int z = currentChunkPosZ - ViewDistance; z < currentChunkPosZ + ViewDistance; z++) {
-			if (ChunkIsInWorld(x,z)){
 				ChunksToBeChecked[sizeOfChunksToBeChecked].x = x;
 				ChunksToBeChecked[sizeOfChunksToBeChecked].z = z;
-				sizeOfChunksToBeChecked++;
-			}
+				sizeOfChunksToBeChecked++;	
 		}
 	}
 
@@ -217,21 +207,11 @@ static DWORD WINAPI WorldThread() {
 	return 0;
 }
 
-static bool BlockIsInWorld(int x, int y, int z) {
-	return x >= 0 && x < WORLDSIZEINBLOCKS &&
-		y < CHUNK_SIZEV &&
-		z >= 0 && z < WORLDSIZEINBLOCKS;
-}
-
 #define CLAMP(x, min, max) ((x) < (min) ? (min) : ((x) > (max) ? (max) : (x)))
 
 void GetBlock(Block* block,int x, int y, int z){
-	if (!BlockIsInWorld(x, y, z)){
-		block->blockstate = UnsetBLOCKSOLID(block->blockstate);
-		return;
-	}
-	else {
 
+		block->blockstate = UnsetBLOCKSOLID(block->blockstate);
 		if(y == 0){
 			block->blockstate = SetBLOCKSOLID(block->blockstate);
 			block->blockID = 4;
@@ -253,8 +233,6 @@ void GetBlock(Block* block,int x, int y, int z){
 		else {
 			block->blockstate = UnsetBLOCKSOLID(block->blockstate);
 		}
-
-	}
 }
 
 HANDLE StartWorld()
@@ -282,7 +260,7 @@ HANDLE StartWorld()
 	ChunksToBeChecked = calloc(ACTIVE_GRID_SIZE * ACTIVE_GRID_SIZE, sizeof(ChunksCheck));
 	InitFIFO(&AvailableSpacesOnActiveList, ACTIVE_GRID_SIZE * ACTIVE_GRID_SIZE, sizeof(int));
 
-	SetCamPos((vec3){WORLDSIZEINBLOCKS/2, 128, WORLDSIZEINBLOCKS/2});
+	SetCamPos((vec3){0, 128, 0});
 	getCameraTargetAndPosition(&lastPlayerPos, NULL);
 	GenerateWorld(lastPlayerPos);
 
