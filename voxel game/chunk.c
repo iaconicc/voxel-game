@@ -94,18 +94,18 @@ const static vec2 uvs270[6][4] = {
 static void populateVoxelMap(Chunk* chunk){
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
 	{
-		for (size_t y = 0; y < CHUNK_SIZEV; y++)
+		for (size_t y = 0; y < CHUNK_SIZE; y++)
 		{
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
-				GetBlock(&chunk->blocksState[x][y][z], x + (chunk->pos.x * CHUNK_SIZE), y, z + (chunk->pos.z * CHUNK_SIZE));
+				GetBlock(&chunk->blocksState[x][y][z], x + (chunk->pos.x * CHUNK_SIZE), y + (chunk->pos.y * CHUNK_SIZE), z + (chunk->pos.z * CHUNK_SIZE));
 			}
 		}
 	}
 }
 
 static bool IsBlockInChunk(int x, int y, int z){
-	if (x < 0 || x > CHUNK_SIZE - 1 || y < 0 || y > CHUNK_SIZEV - 1 || z < 0 || z > CHUNK_SIZE - 1){
+	if (x < 0 || x > CHUNK_SIZE - 1 || y < 0 || y > CHUNK_SIZE - 1 || z < 0 || z > CHUNK_SIZE - 1){
 		return false;
 	}
 	else{
@@ -117,7 +117,7 @@ static bool checkVoxel(Chunk* chunk, ChunkBlockOffset pos)
 {
 	if (!IsBlockInChunk(pos.x, pos.y, pos.z)){
 		Block block = {0};
-		GetBlock(&block, pos.x + (chunk->pos.x * CHUNK_SIZE), pos.y, pos.z + chunk->pos.z * CHUNK_SIZE);
+		GetBlock(&block, pos.x + (chunk->pos.x * CHUNK_SIZE), pos.y + (chunk->pos.y * CHUNK_SIZE), pos.z + chunk->pos.z * CHUNK_SIZE);
 		return ISBLOCKSOLID(block.blockstate);
 	}
 
@@ -172,6 +172,7 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 	int vertexListSize = 0;
 
 	chunk->pos.x = chunkGen->x;
+	chunk->pos.y = chunkGen->y;
 	chunk->pos.z = chunkGen->z;
 
 	populateVoxelMap(chunk);
@@ -179,7 +180,7 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 	//check each face and calculate how large the vertex and index list should be
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
 	{
-		for (size_t y = 0; y < CHUNK_SIZEV; y++)
+		for (size_t y = 0; y < CHUNK_SIZE; y++)
 		{
 			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
@@ -200,6 +201,11 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 		}
 	}
 	
+	if (vertexListSize == 0 || chunk->mesh.IndexListSize == 0){
+		free(chunk);
+		return -1;
+	}
+
 	//allocate memory enough for both indices and vertexes
 	int* indexList = calloc(chunk->mesh.IndexListSize,sizeof(int));
 	vertex* vertexList = calloc(vertexListSize,sizeof(vertex));
@@ -223,9 +229,9 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 	//add vertexs and indices
 	for (size_t x = 0; x < CHUNK_SIZE; x++)
 	{
-		for (size_t y = 0; y < CHUNK_SIZEV; y++)
+		for (size_t y = 0; y < CHUNK_SIZE; y++)
 		{
-			for (size_t z = 0; z < CHUNK_SIZE; z++)
+			for (size_t z = 0; z < 32; z++)
 			{
 				ChunkBlockOffset pos = { x, y, z};
 				if (checkVoxel(chunk,pos))
@@ -236,11 +242,11 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 		}
 	}
 
-
 	EnterCriticalSection(mutex);
 	buffer->indexBufferElements = chunk->mesh.IndexListSize;
-	buffer->vertexBufferInBytes = vertexListSize*sizeof(vertex);
+	buffer->vertexBufferInBytes = vertexListSize * sizeof(vertex);
 	buffer->x = chunk->pos.x;
+	buffer->y = chunk->pos.y;
 	buffer->z = chunk->pos.z;
 	updateBuffer(buffer, vertexList, indexList);
 	buffer->inUse = true;
