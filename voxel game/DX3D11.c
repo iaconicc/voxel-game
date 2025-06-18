@@ -55,7 +55,7 @@ FogConstants fog = {
 	{0.0f, 0.0f, 0.0f, 0.0f},
 	{0.0f, 0.0f, 0.0f},
 	0.45f,
-	200.0f,
+	400.0f,
 };
 ID3D11Buffer* FogConstantBuffer = NULL;
 
@@ -458,9 +458,10 @@ void CreateDX3D11DeviceForWindow(HWND hwnd, int width, int height)
 	DXFUNCTIONFAILED(device->lpVtbl->CreateVertexShader(device, vertexShaderBlob->lpVtbl->GetBufferPointer(vertexShaderBlob), vertexShaderBlob->lpVtbl->GetBufferSize(vertexShaderBlob), NULL, &vertexShader));
 
 	//create and bind input layout
-	const D3D11_INPUT_ELEMENT_DESC ied[] = {
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"TexCoord", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+	D3D11_INPUT_ELEMENT_DESC ied[] = {
+		{ "POSITION", 0, DXGI_FORMAT_R8G8B8A8_SINT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXMETA",  0, DXGI_FORMAT_R16_UINT,      0, 4, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXPLANE", 0, DXGI_FORMAT_R8_UINT,       0, 6, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	DXFUNCTIONFAILED(device->lpVtbl->CreateInputLayout(device, &ied, 2, vertexShaderBlob->lpVtbl->GetBufferPointer(vertexShaderBlob), vertexShaderBlob->lpVtbl->GetBufferSize(vertexShaderBlob), &inputLayout));
 
@@ -550,6 +551,95 @@ ID3D11Buffer* createVertexBuffer(vertex* vertexArray, int sizeInBytes)
 
 	return vertexBuffer;
 }
+
+ChunkBuffers* AllocateChunkBuffers(int BufferCount, int vertexMin, int indexMin){
+	ChunkBuffers* RenderList = malloc(sizeof(ChunkBuffers));
+	if (!RenderList) return NULL;
+
+	RenderList->BufferList = calloc(BufferCount, sizeof(GPUBuffer));
+	if (!RenderList->BufferList) { 
+	free(RenderList); 
+	return NULL; 
+	}
+
+	D3D11_BUFFER_DESC ibd = { 0 };
+	ibd.ByteWidth = indexMin;
+	ibd.Usage = D3D11_USAGE_DYNAMIC;
+	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	ibd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	ibd.MiscFlags = 0;
+	ibd.StructureByteStride = sizeof(int);
+
+	D3D11_BUFFER_DESC vbd = { 0 };
+	vbd.ByteWidth = vertexMin;
+	vbd.Usage = D3D11_USAGE_DYNAMIC;
+	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	vbd.MiscFlags = 0;
+	vbd.StructureByteStride = sizeof(vertex);
+
+	HRESULT hr;
+	WCHAR* msg;
+	for (int i = 0; i < BufferCount; i++){
+		if ((((HRESULT)(hr = (device->lpVtbl->CreateBuffer(device, &vbd, ((void*)0), &RenderList->BufferList[i].vertexBuffer)))) < 0)) {
+			logDXMessages(); PostQuitMessage(hr); msg = formatWin32ErrorCodes(hr); __LogException(L"C:\\Users\\rehob\\source\\repos\\voxel game\\voxel game\\DX3D11.c", 596, L"DX3D11", msg); free(msg); 
+			for (size_t j = 0; j < i; j++){
+				RenderList->BufferList[j].vertexBuffer->lpVtbl->Release(RenderList->BufferList[j].vertexBuffer);
+				RenderList->BufferList[j].indexBuffer->lpVtbl->Release(RenderList->BufferList[j].indexBuffer);
+			}
+			free(RenderList->BufferList);
+			free(RenderList);
+			return NULL;
+		};
+		if ((((HRESULT)(hr = (device->lpVtbl->CreateBuffer(device, &ibd, ((void*)0), &RenderList->BufferList[i].indexBuffer)))) < 0)) {
+			logDXMessages(); PostQuitMessage(hr); msg = formatWin32ErrorCodes(hr); __LogException(L"C:\\Users\\rehob\\source\\repos\\voxel game\\voxel game\\DX3D11.c", 597, L"DX3D11", msg); free(msg); 
+			for (size_t j = 0; j < i; j++) {
+				RenderList->BufferList[j].vertexBuffer->lpVtbl->Release(RenderList->BufferList[j].vertexBuffer);
+				RenderList->BufferList[j].indexBuffer->lpVtbl->Release(RenderList->BufferList[j].indexBuffer);
+			}
+			free(RenderList->BufferList);
+			free(RenderList);
+			return NULL;
+		};
+	}
+
+	RenderList->BufferCount = BufferCount;
+	RenderList->BufferVertexMinSize = vertexMin;
+	RenderList->BufferIndexMinSize = indexMin;
+	RenderList->totalIndexBufferSizeInBytes = indexMin * BufferCount;
+	RenderList->totalVertexBufferSizeInBytes = vertexMin * BufferCount;
+	return RenderList;
+}
+
+void updateBuffer(GPUBuffer* buffer, vertex* vertexs, int* indices){
+	HRESULT hr;
+	WCHAR* msg;
+
+	D3D11_MAPPED_SUBRESOURCE VertexMap = {0};
+	D3D11_MAPPED_SUBRESOURCE IndexMap =  {0};
+	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, buffer->vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &VertexMap));
+	DXFUNCTIONFAILED(deviceContext->lpVtbl->Map(deviceContext, buffer->indexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &IndexMap));
+
+	memcpy(VertexMap.pData, vertexs, buffer->vertexBufferInBytes);
+	memcpy(IndexMap.pData, indices, buffer->indexBufferElements * sizeof(int));
+
+	deviceContext->lpVtbl->Unmap(deviceContext, buffer->vertexBuffer, 0);
+	deviceContext->lpVtbl->Unmap(deviceContext, buffer->indexBuffer, 0);
+}
+
+void copyBuffer(ID3D11Buffer* destination, ID3D11Buffer* source) {
+	deviceContext->lpVtbl->CopyResource(deviceContext, destination, source);
+}
+
+void ReleaseChunkBuffers(ChunkBuffers* buffers){
+	if (!buffers) return;
+	for (size_t i = 0; i < buffers->BufferCount; i++){
+		buffers->BufferList[i].vertexBuffer->lpVtbl->Release(buffers->BufferList[i].vertexBuffer);
+		buffers->BufferList[i].indexBuffer->lpVtbl->Release(buffers->BufferList[i].indexBuffer);
+	}
+	free(buffers);
+}
+
 
 ID3D11Buffer* createIndexDataBuffer(int* indexArray, int sizeInBytes)
 {
@@ -691,14 +781,14 @@ static void updateViewMatrix()
 	HRESULT hr;
 	WCHAR* msg;
 
-	//calculate view matrix
-	vec3 cameraPosition; // Camera position in world space
-	vec3 cameraTarget;   // Point the camera is looking at
-	vec3 upVector = { 0.0f, 1.0f, 0.0f };       // Up direction
-	getCameraTargetAndPosition(&cameraPosition, &cameraTarget);
+	vec3 eye = { 0.0f, 0.0f, 0.0f };
+	vec3 up = {0.0f, 1.0f, 0.0f};
+	vec3 target;
+	vec3 cameraForward;
+	getCameraTargetAndForward(&target, &cameraForward);
+	glm_vec3_add(eye, cameraForward, target);
 
-	glm_vec3_copy(cameraPosition, fog.CamPos);
-	glm_lookat(cameraPosition, cameraTarget, upVector, matrixBuffer.viewMatrix);
+	glm_lookat(eye, target, up, matrixBuffer.viewMatrix);
 	glm_mat4_transpose(matrixBuffer.viewMatrix);
 
 	D3D11_MAPPED_SUBRESOURCE MatrixMap = { 0 };

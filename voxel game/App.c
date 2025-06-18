@@ -20,28 +20,28 @@ static void DoFrameLogic()
 	float delta = getFrameDelta();
 
 	if(keyIsPressed('W'))
-		MoveCameraForward(6.917 * delta);
+		MoveCameraForward(8.917 * delta);
 
 	if (keyIsPressed('S'))
-		MoveCameraBack(6.917 * delta);
+		MoveCameraBack(8.917 * delta);
 
 	if (keyIsPressed('A'))
-		StrafeCameraLeft(6.917 * delta);
+		StrafeCameraLeft(8.917 * delta);
 
 	if (keyIsPressed('D'))
-		StrafeCameraRight(6.917 * delta);
+		StrafeCameraRight(8.917 * delta);
 
 	if (keyIsPressed(VK_UP))
-		RotateCam(0, 25.0 * delta);
+		RotateCam(0, 35.0 * delta);
 
 	if (keyIsPressed(VK_DOWN))
-		RotateCam(0.0, -25.0 * delta);
+		RotateCam(0.0, -35.0 * delta);
 
 	if (keyIsPressed(VK_LEFT))
-		RotateCam(25.0 * delta, 0.0);
+		RotateCam(35.0 * delta, 0.0);
 
 	if (keyIsPressed(VK_RIGHT))
-		RotateCam(-25.0 * delta, 0.0);
+		RotateCam(-35.0 * delta, 0.0);
 
 	if (keyIsPressed(VK_F11))
 		toggleFullScreen();
@@ -49,11 +49,11 @@ static void DoFrameLogic()
 
 static void WINAPI FPSThread(){
 	while (running){
-		Sleep(1000);
-		vec3 pos;
-		getCameraTargetAndPosition(&pos, NULL);
+		Sleep(100);
+		double pos[3];
+		getCameraWorldPos(pos);
 		WCHAR formatedTitle[200];
-		StringCchPrintfW(formatedTitle, 200, L"Voxel-Game fps: %.2f Chunk:%u, %u", getFrameRate(), (int)floorf(pos[0] / 16), (int)floorf(pos[2] / 16));
+		StringCchPrintfW(formatedTitle, 200, L"Voxel-Game fps: %.2f pos:%.2f, %.2f, %.2f", getFrameRate(), pos[0], pos[1], pos[2]);
 		SetWindowTitle(formatedTitle);
 	}
 	return 0;
@@ -91,7 +91,9 @@ int ApplicationStartAndRun(int width, int height, WCHAR* name)
 		}
 		DoFrameLogic();
 		DrawChunks();
+		EnterCriticalSection(getActiveListCriticalSection());
 		EndFrame();
+		LeaveCriticalSection(getActiveListCriticalSection());
 
 #ifdef _DEBUG
 		logDXMessages();

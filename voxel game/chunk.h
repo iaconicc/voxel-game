@@ -2,8 +2,7 @@
 #include "DX3D11.h"
 #include <cglm.h>
 
-#define CHUNK_SIZE  16
-#define CHUNK_SIZEV 32
+#define CHUNK_SIZE  32
 
 #define ISBLOCKSOLID(blockstate) (blockstate & 1)
 #define SetBLOCKSOLID(blockstate) ((blockstate & 1) | 1)
@@ -20,23 +19,30 @@ typedef struct {
 	uint16_t blockstate;
 }Block;
 
+typedef struct{
+	uint64_t isSolid[(CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE)/64];
+	uint16_t BlockState[CHUNK_SIZE*CHUNK_SIZE*CHUNK_SIZE];//first 10 bits represent a block id the following 2 bits are rotation values then 4 allowing 16 custom states;
+}ChunkState;
+
 typedef struct {
 	int x;
+	int y;
 	int z;
 }chunkPos;
 
 typedef struct {
-	Block blocksState[CHUNK_SIZE][CHUNK_SIZEV][CHUNK_SIZE];
+	Block blocksState[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE];
 	chunkMesh mesh;
 	chunkPos pos;
-	int activeID;
 }Chunk;
 
 typedef struct {
-	struct hashmap* hash;
+	ChunkBuffers* chunkBuffers;
 	CRITICAL_SECTION* criticalSection;
 	int x;
 	int z;
+	int y;
+	int ActiveIndex;
 }chunkGenData;
 
 DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen);

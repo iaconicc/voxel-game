@@ -91,7 +91,7 @@ static void OnKeyPressed(uint8_t virtualKey)
 		.vkcode = virtualKey
 	};
 	PushElement(&keyevents, &event);
-	LogDebug(L"Key pressed: %u", virtualKey);
+	//LogDebug(L"Key pressed: %u", virtualKey);
 }
 
 static void OnKeyReleased(uint8_t virtualKey)
@@ -103,13 +103,13 @@ static void OnKeyReleased(uint8_t virtualKey)
 	.vkcode = virtualKey
 	};
 	PushElement(&keyevents, &event);
-	LogDebug(L"Key released: %u", virtualKey);
+	//LogDebug(L"Key released: %u", virtualKey);
 }
 
 static void OnChar(WCHAR character)
 {
 	PushElement(&characterFifo, &character);
-	LogDebug(L"Character input: %lc", character);
+	//LogDebug(L"Character input: %lc", character);
 }
 
 static void ClearState()

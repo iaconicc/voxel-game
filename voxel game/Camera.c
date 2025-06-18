@@ -4,7 +4,7 @@
 vec3 up = {0.0f, 1.0f, 0.0f};
 
 typedef struct {
-	vec3 pos;
+	double Worldpos[3];
     vec3 target;
     vec3 forward;
 	vec3 right;
@@ -14,86 +14,62 @@ typedef struct {
 
 Camera camera;
 
-void getCameraTargetAndPosition(vec3* pos, vec3* target)
-{
-    if (pos){
-        memcpy(pos, &camera.pos, sizeof(vec3));
-    }
-    if (target){
-        memcpy(target, &camera.target, sizeof(vec3));
-    }
-}
-
 void initialiseCamera()
 {
-    glm_vec3_copy((vec3) { 0.0f, 0.0f, 0.0f }, camera.pos);
-    glm_vec3_add(camera.pos, (vec3) { 0.0f, 0.0f, 1.0f }, camera.target);
-    glm_vec3_sub(camera.target, camera.pos, camera.forward); //calculate forward vector
+    camera.Worldpos[0] = 0.0f;
+    camera.Worldpos[1] = 0.0f;
+    camera.Worldpos[2] = 0.0f;
+
+    glm_vec3_copy((vec3) { 0.0f, 0.0f, 1.0f }, camera.forward);
     glm_vec3_normalize(camera.forward);
+
+    vec3 renderTarget;
+    renderTarget[0] = (float)(camera.Worldpos[0] + camera.forward[0]);
+    renderTarget[1] = (float)(camera.Worldpos[1] + camera.forward[1]);
+    renderTarget[2] = (float)(camera.Worldpos[2] + camera.forward[2]);
+
+    glm_vec3_copy(renderTarget, camera.target);
+
     glm_vec3_cross(camera.forward, up, camera.right);
     glm_vec3_normalize(camera.right);
 
     camera.rotY = 0;
     camera.rotX = 0;
-
-    vec3 rotationAxis = { 0.0f, 1.0f, 0.0f }; // Y-axis for yaw
-    glm_vec3_rotate(camera.forward, glm_rad(camera.rotX), rotationAxis);
-
-    vec3 rightAxis;
-    glm_vec3_cross(camera.forward, up, rightAxis);
-    glm_vec3_normalize(rightAxis);
-    glm_vec3_rotate(camera.forward, glm_rad(camera.rotY), rightAxis);
-
-    // Recalculate the right vector after both rotations
-    glm_vec3_cross(camera.forward, up, camera.right);
-    glm_vec3_normalize(camera.right);
-
-    glm_vec3_add(camera.pos, camera.forward, camera.target);
 }
 
-void SetCamPos(vec3 newPos)
+void SetCamWorldPos(vec3 newPos)
 {
-    glm_vec3_copy(newPos, camera.pos);
-    glm_vec3_add(camera.pos, (vec3) { 0.0f, 0.0f, 1.0f }, camera.target);
-    // Recalculate the right vector after both rotations
-    glm_vec3_cross(camera.forward, up, camera.right);
-    glm_vec3_normalize(camera.right);
+    camera.Worldpos[0] += (double)newPos[0];
+    camera.Worldpos[1] += (double)newPos[1];
+    camera.Worldpos[2] += (double)newPos[2];
 }
 
 void MoveCameraForward(float displacement)
 {
-    vec3 movement = { 0.0f, 0.0f, 0.0f };
-    glm_vec3_scale(camera.forward, displacement, movement);
-    glm_vec3_add(camera.pos, movement, camera.pos);
-
-    glm_vec3_add(camera.pos, camera.forward, camera.target);
+    camera.Worldpos[0] += camera.forward[0] * displacement;
+    camera.Worldpos[1] += camera.forward[1] * displacement;
+    camera.Worldpos[2] += camera.forward[2] * displacement;
 }
 
 void MoveCameraBack(float displacement)
 {
-    vec3 movement = { 0.0f, 0.0f, 0.0f };
-    glm_vec3_scale(camera.forward, -displacement, movement);
-    glm_vec3_add(camera.pos, movement, camera.pos);
-
-    glm_vec3_add(camera.pos, camera.forward, camera.target);
+    camera.Worldpos[0] -= camera.forward[0] * displacement;
+    camera.Worldpos[1] -= camera.forward[1] * displacement;
+    camera.Worldpos[2] -= camera.forward[2] * displacement;
 }
 
 void StrafeCameraLeft(float displacement)
 {
-    vec3 movement = { 0.0f, 0.0f, 0.0f };
-    glm_vec3_scale(camera.right, -displacement, movement);
-    glm_vec3_add(camera.pos, movement, camera.pos);
-
-    glm_vec3_add(camera.pos, camera.forward, camera.target);
+    camera.Worldpos[0] -= camera.right[0] * displacement;
+    camera.Worldpos[1] -= camera.right[1] * displacement;
+    camera.Worldpos[2] -= camera.right[2] * displacement;
 }
 
 void StrafeCameraRight(float displacement)
 {
-    vec3 movement = { 0.0f, 0.0f, 0.0f };
-    glm_vec3_scale(camera.right, displacement, movement);
-    glm_vec3_add(camera.pos, movement, camera.pos);
-
-    glm_vec3_add(camera.pos, camera.forward, camera.target);
+    camera.Worldpos[0] += camera.right[0] * displacement;
+    camera.Worldpos[1] += camera.right[1] * displacement;
+    camera.Worldpos[2] += camera.right[2] * displacement;
 }
 
 void RotateCam(float deltaX, float deltaY)
@@ -101,20 +77,36 @@ void RotateCam(float deltaX, float deltaY)
     camera.rotX += deltaX;
     camera.rotY += deltaY;
 
-    // Rotate around the Y-axis (yaw)
-    vec3 rotationAxis = { 0.0f, 1.0f, 0.0f };
-    glm_vec3_rotate(camera.forward, glm_rad(deltaX), rotationAxis);
+    // Start with default forward vector
+    glm_vec3_copy((vec3) { 0.0f, 0.0f, 1.0f }, camera.forward);
 
-    // Rotate around the right axis (pitch)
+    // Rotate around Y-axis (yaw)
+    glm_vec3_rotate(camera.forward, glm_rad(camera.rotX), up);
+
+    // Compute right axis from forward
     vec3 rightAxis;
     glm_vec3_cross(camera.forward, up, rightAxis);
     glm_vec3_normalize(rightAxis);
-    glm_vec3_rotate(camera.forward, glm_rad(deltaY), rightAxis);
 
-    // Recalculate the right vector after both rotations
+    // Rotate around right axis (pitch)
+    glm_vec3_rotate(camera.forward, glm_rad(camera.rotY), rightAxis);
+
+    // Recalculate right vector
     glm_vec3_cross(camera.forward, up, camera.right);
     glm_vec3_normalize(camera.right);
 
-    // Update the target position
-    glm_vec3_add(camera.pos, camera.forward, camera.target);
+    // Update target for view matrix use
+    glm_vec3_add((vec3) { 0.0f, 0.0f, 0.0f }, camera.forward, camera.target);
+}
+
+void getCameraTargetAndForward(vec3* outTarget, vec3* outForward)
+{
+    if (outTarget) glm_vec3_copy(camera.target, *outTarget);
+    if (outForward) glm_vec3_copy(camera.forward, *outForward);
+}
+
+void getCameraWorldPos(double out[3]) {
+    out[0] = camera.Worldpos[0];
+    out[1] = camera.Worldpos[1];
+    out[2] = camera.Worldpos[2];
 }
