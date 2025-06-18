@@ -781,14 +781,14 @@ static void updateViewMatrix()
 	HRESULT hr;
 	WCHAR* msg;
 
-	//calculate view matrix
-	vec3 cameraPosition; // Camera position in world space
-	vec3 cameraTarget;   // Point the camera is looking at
-	vec3 upVector = { 0.0f, 1.0f, 0.0f };       // Up direction
-	getCameraTargetAndPosition(&cameraPosition, &cameraTarget);
+	vec3 eye = { 0.0f, 0.0f, 0.0f };
+	vec3 up = {0.0f, 1.0f, 0.0f};
+	vec3 target;
+	vec3 cameraForward;
+	getCameraTargetAndForward(&target, &cameraForward);
+	glm_vec3_add(eye, cameraForward, target);
 
-	glm_vec3_copy(cameraPosition, fog.CamPos);
-	glm_lookat(cameraPosition, cameraTarget, upVector, matrixBuffer.viewMatrix);
+	glm_lookat(eye, target, up, matrixBuffer.viewMatrix);
 	glm_mat4_transpose(matrixBuffer.viewMatrix);
 
 	D3D11_MAPPED_SUBRESOURCE MatrixMap = { 0 };

@@ -50,8 +50,8 @@ static void DoFrameLogic()
 static void WINAPI FPSThread(){
 	while (running){
 		Sleep(100);
-		vec3 pos;
-		getCameraTargetAndPosition(&pos, NULL);
+		double pos[3];
+		getCameraWorldPos(pos);
 		WCHAR formatedTitle[200];
 		StringCchPrintfW(formatedTitle, 200, L"Voxel-Game fps: %.2f pos:%.2f, %.2f, %.2f", getFrameRate(), pos[0], pos[1], pos[2]);
 		SetWindowTitle(formatedTitle);

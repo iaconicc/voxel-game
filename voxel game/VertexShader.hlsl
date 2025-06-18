@@ -15,16 +15,16 @@ VSOut main(int4 pos : POSITION, uint texID : TEXMETA)
 {
     VSOut vso;
    
-    float4 worldpos = float4(float3(pos.xyz) - 0.5f, 1.0f);
+    float4 localPos = float4(float3(pos.xyz) - 0.5f, 1.0f);
     
     //translate to world space
-    worldpos = mul(worldpos, transform);
+    float4 worldpos = mul(localPos, transform);
     vso.WorldPos = worldpos;
     
     //translate to screenspace
     float4 viewspace = mul(worldpos, view);
     vso.pos = mul(viewspace, projection);
-        
+    
     //calculate tex coords
     
     //extracting local uv from top 2 bits of texID

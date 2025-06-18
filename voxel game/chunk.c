@@ -91,12 +91,12 @@ const static vec2 uvs270[6][4] = {
 	{{1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f}}  // east face
 };
 
-static void populateVoxelMap(Chunk* chunk){
-	for (size_t x = 0; x < CHUNK_SIZE; x++)
+inline static void populateVoxelMap(Chunk* chunk){
+	for (int x = 0; x < CHUNK_SIZE; x++)
 	{
-		for (size_t y = 0; y < CHUNK_SIZE; y++)
+		for (int y = 0; y < CHUNK_SIZE; y++)
 		{
-			for (size_t z = 0; z < CHUNK_SIZE; z++)
+			for (int z = 0; z < CHUNK_SIZE; z++)
 			{
 				GetBlock(&chunk->blocksState[x][y][z], x + (chunk->pos.x * CHUNK_SIZE), y + (chunk->pos.y * CHUNK_SIZE), z + (chunk->pos.z * CHUNK_SIZE));
 			}
@@ -104,7 +104,7 @@ static void populateVoxelMap(Chunk* chunk){
 	}
 }
 
-static bool IsBlockInChunk(int x, int y, int z){
+inline static bool IsBlockInChunk(int x, int y, int z){
 	if (x < 0 || x > CHUNK_SIZE - 1 || y < 0 || y > CHUNK_SIZE - 1 || z < 0 || z > CHUNK_SIZE - 1){
 		return false;
 	}
@@ -113,7 +113,7 @@ static bool IsBlockInChunk(int x, int y, int z){
 	}
 }
 
-static bool checkVoxel(Chunk* chunk, ChunkBlockOffset pos)
+inline static bool checkVoxel(Chunk* chunk, ChunkBlockOffset pos)
 {
 	if (!IsBlockInChunk(pos.x, pos.y, pos.z)){
 		Block block = {0};
@@ -124,7 +124,7 @@ static bool checkVoxel(Chunk* chunk, ChunkBlockOffset pos)
 	return ISBLOCKSOLID(chunk->blocksState[pos.x][pos.y][pos.z].blockstate);
 }
 
-static void addVoxelDataToChunk(Chunk* chunk, ChunkBlockOffset pos, int* currentVertexindex, vertex* vertexList, int* indexList)
+inline static void addVoxelDataToChunk(Chunk* chunk, ChunkBlockOffset pos, int* currentVertexindex, vertex* vertexList, int* indexList)
 {	
 		for (size_t f = 0; f < 6; f++)
 		{
@@ -231,7 +231,7 @@ DWORD WINAPI generateChunkMesh(chunkGenData* chunkGen)
 	{
 		for (size_t y = 0; y < CHUNK_SIZE; y++)
 		{
-			for (size_t z = 0; z < 32; z++)
+			for (size_t z = 0; z < CHUNK_SIZE; z++)
 			{
 				ChunkBlockOffset pos = { x, y, z};
 				if (checkVoxel(chunk,pos))

@@ -42,7 +42,7 @@ CRITICAL_SECTION JobQueueMutex;
 
 bool ThreadPoolRunning = true;
 
-#define ViewDistance 4
+#define ViewDistance 8
 #define ACTIVE_GRID_SIZE (2 * ViewDistance)
 
 #define MIN_SURFACE_HEIGHT  1.0f
@@ -50,12 +50,12 @@ bool ThreadPoolRunning = true;
 
 fnl_state noise;
 
-vec3 lastPlayerPos;
+double lastPlayerPos[3];
 
-inline static void GetChunkPosFromAbsolutePos(vec3 pos, int* x, int* y,int* z)
+inline static void GetChunkPosFromAbsolutePos(double pos[3], int* x, int* y, int* z)
 {
 	*x =(int) floorf(pos[0]/ CHUNK_SIZE);
-	*y = (int)floorf(pos[2] / CHUNK_SIZE);
+	*y = (int)floorf(pos[1] / CHUNK_SIZE);
 	*z =(int) floorf(pos[2] / CHUNK_SIZE);
 }
 
@@ -73,7 +73,7 @@ inline static void QueueChunkJob(JobFunction func, void* data){
 	LeaveCriticalSection(&JobQueueMutex);
 }
 
-inline static void GenerateWorld(vec3 pos) {
+inline static void GenerateWorld(double pos[3]) {
 	size_t sizeOfActiveList = 0;
 	int Chunkx = 0, chunkY = 0, Chunkz = 0;
 	GetChunkPosFromAbsolutePos(pos, &Chunkx, &chunkY,&Chunkz);
@@ -192,8 +192,8 @@ static DWORD WINAPI WorldThread() {
 	{
 		if (!DxsettingUp())
 		{
-			vec3 currentPlayerPos;
-			getCameraTargetAndPosition(&currentPlayerPos, NULL);
+			double currentPlayerPos[3];
+			getCameraWorldPos(currentPlayerPos);
 			
 			int LastChunkx = 0;
 			int LastChunky = 0;
@@ -210,7 +210,9 @@ static DWORD WINAPI WorldThread() {
 				CheckViewDistance(Chunkx, Chunky,Chunkz);
 			}
 
-			glm_ivec3_copy(currentPlayerPos, lastPlayerPos);
+			lastPlayerPos[0] = currentPlayerPos[0];
+			lastPlayerPos[1] = currentPlayerPos[1];
+			lastPlayerPos[2] = currentPlayerPos[2];
 		}
 	}
 
@@ -288,8 +290,8 @@ HANDLE StartWorld()
 	ChunksToBeChecked = calloc(ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE, sizeof(ChunksCheck));
 	InitFIFO(&AvailableSpacesOnActiveList, ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE, sizeof(int));
 
-	SetCamPos((vec3){128, 65, 128});
-	getCameraTargetAndPosition(&lastPlayerPos, NULL);
+	SetCamWorldPos((vec3){ 0, 0, 0});
+	getCameraWorldPos(lastPlayerPos);
 	GenerateWorld(lastPlayerPos);
 
 	//chunk generation thread
@@ -305,12 +307,15 @@ CRITICAL_SECTION* getActiveListCriticalSection(){
 
 void DrawChunks()
 {		
+	double worldPos[3];
+	getCameraWorldPos(worldPos);
+
 	for (int i = 0; i < ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE; i++)
 	{
 		EnterCriticalSection(&activeListMutex);
 		if (activeList->BufferList[i].inUse && activeList->BufferList[i].vertexBufferInBytes != 0 && activeList->BufferList[i].indexBufferElements != 0) {
 			GPUBuffer* buffer = &activeList->BufferList[i];
-			DrawMesh(buffer->vertexBuffer, buffer->indexBuffer, buffer->indexBufferElements, (vec3) { buffer->x* CHUNK_SIZE, buffer->y* CHUNK_SIZE, buffer->z* CHUNK_SIZE});
+			DrawMesh(buffer->vertexBuffer, buffer->indexBuffer, buffer->indexBufferElements, (vec3) {(float) buffer->x* CHUNK_SIZE - worldPos[0], (float) buffer->y* CHUNK_SIZE - worldPos[1], (float) buffer->z* CHUNK_SIZE - worldPos[2]});
 		}
 		LeaveCriticalSection(&activeListMutex);
 	}

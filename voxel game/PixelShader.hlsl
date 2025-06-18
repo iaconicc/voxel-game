@@ -1,7 +1,7 @@
 cbuffer FogBuff{
     float4 fogcolour;
     float3 cameraPos;
-    float FogDesity;
+    float FogDensity;
     float FogEnd;
 };
 
@@ -12,7 +12,7 @@ float calculateExpfogFactor(float3 worldPos)
 {
     float CameraToPixelDist = length(worldPos - cameraPos);
     float DistRatio = 4.0 * CameraToPixelDist / FogEnd;
-    float fogFactor = exp(-DistRatio * FogDesity);
+    float fogFactor = exp(-DistRatio * FogDensity);
     return fogFactor;
 }
 
