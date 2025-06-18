@@ -290,7 +290,7 @@ HANDLE StartWorld()
 	ChunksToBeChecked = calloc(ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE, sizeof(ChunksCheck));
 	InitFIFO(&AvailableSpacesOnActiveList, ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE, sizeof(int));
 
-	SetCamWorldPos((vec3){ 0, 0, 0});
+	SetCamWorldPos((vec3){ 0, 100, 419430900});
 	getCameraWorldPos(lastPlayerPos);
 	GenerateWorld(lastPlayerPos);
 
