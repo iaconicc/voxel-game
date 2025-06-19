@@ -45,8 +45,8 @@ bool ThreadPoolRunning = true;
 #define ViewDistance 8
 #define ACTIVE_GRID_SIZE (2 * ViewDistance)
 
-#define MIN_SURFACE_HEIGHT  1.0f
-#define MAX_SURFACE_HEIGHT  128.0f
+#define MIN_SURFACE_HEIGHT  64.0f
+#define MAX_SURFACE_HEIGHT  75.0f
 
 fnl_state noise;
 
@@ -247,15 +247,15 @@ void GetBlock(Block* block,int x, int y, int z){
 			return;
 		}
 
-		float val = fnlGetNoise2D(&noise, x, z);
-		int Surfaceheight = (int)(((val + 1.0f) * 0.5f) * (MAX_SURFACE_HEIGHT - MIN_SURFACE_HEIGHT) + MIN_SURFACE_HEIGHT);
+		float noise = fnlGetNoise3D(&noise, x, z, z);
+		int surfaceHeight = (int)(height * (MAX_SURFACE_HEIGHT - MIN_SURFACE_HEIGHT) + MIN_SURFACE_HEIGHT);
 		//int Surfaceheight =  64;
 
-		if (y <= Surfaceheight) {
-			if (y == Surfaceheight){
+		if (y <= surfaceHeight) {
+			if (y == surfaceHeight){
 				block->blockID = 2;
 			}
-			else if(y >= (Surfaceheight-5)){
+			else if(y >= (surfaceHeight-5)){
 				block->blockID = 1;
 			}
 			block->blockstate = SetBLOCKSOLID(block->blockstate);
@@ -274,10 +274,10 @@ HANDLE StartWorld()
 
 	noise = fnlCreateState();
 	noise.noise_type = FNL_NOISE_PERLIN;
-	noise.frequency = 0.01f;
+	noise.frequency = 0.03f;
 	noise.seed = rand();
-	noise.fractal_type = FNL_FRACTAL_FBM;
-	noise.octaves = 10;
+	noise.fractal_type = FNL_FRACTAL_RIDGED;
+	noise.octaves = 5;
 	noise.lacunarity = 2.0f;
 	noise.gain = 0.5f;
 
@@ -290,7 +290,7 @@ HANDLE StartWorld()
 	ChunksToBeChecked = calloc(ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE, sizeof(ChunksCheck));
 	InitFIFO(&AvailableSpacesOnActiveList, ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE, sizeof(int));
 
-	SetCamWorldPos((vec3){ 0, 100, 419430900});
+	SetCamWorldPos((vec3){ 0, 100, 0});
 	getCameraWorldPos(lastPlayerPos);
 	GenerateWorld(lastPlayerPos);
 
