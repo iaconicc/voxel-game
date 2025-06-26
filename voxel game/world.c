@@ -1,9 +1,10 @@
-#include "world.h"
+﻿#include "world.h"
 #include "App.h"
 #include "Camera.h"
 #include <processthreadsapi.h>
 #include "hashmap.h"
 #include "DX3D11.h"
+#include <math.h>  // Provides fminf() and fmaxf()
 
 #define FNL_IMPL
 #include <FastNoiseLite.h>
@@ -48,9 +49,27 @@ bool ThreadPoolRunning = true;
 #define MIN_SURFACE_HEIGHT  64.0f
 #define MAX_SURFACE_HEIGHT  75.0f
 
-fnl_state noise;
+fnl_state noiseStateLow;
+fnl_state noiseStateHigh;
+fnl_state noiseStateBlend;
+fnl_state noiseStateContinental;
 
 double lastPlayerPos[3];
+
+float clamp(float value, float min, float max) {
+	return fminf(fmaxf(value, min), max);
+}
+
+float lerp(float a, float b, float t) {
+	return a + t * (b - a);
+}
+
+float smoothstep(float edge0, float edge1, float x) {
+	// Scale, bias, and saturate x to 0..1 range
+	float t = clamp((x - edge0) / (edge1 - edge0), 0.0f, 1.0f);
+	// Apply cubic Hermite interpolation
+	return t * t * (3.0f - 2.0f * t);
+}
 
 inline static void GetChunkPosFromAbsolutePos(double pos[3], int* x, int* y, int* z)
 {
@@ -236,33 +255,40 @@ static DWORD WINAPI WorldThread() {
 	return 0;
 }
 
-#define CLAMP(x, min, max) ((x) < (min) ? (min) : ((x) > (max) ? (max) : (x)))
+inline static float getNoise(float x, float z, float scale, float offset){
+	float n = fnlGetNoise2D(&noiseStateLow, x * 1.0f + offset, z * 1.0f + offset);
+	float n1 = fnlGetNoise2D(&noiseStateHigh, x * 0.1f + offset, z * 0.1f + offset);
+
+	float b =fnlGetNoise2D(&noiseStateBlend, x * 0.6f + offset, z * 0.6f + offset);
+	b = powf(b,2.0f);
+	b = (b > 0.3f)? 1.0f : 0.0f;
+
+	return lerp(n, n1, b);
+}
+
+inline static int getHeight(int x, int z, float scale, float offset, int minHeight, int maxHeight){
+	float noise = getNoise((x+0.1f), (z+0.1f), scale, offset);
+	float normalized = (powf((noise + 1.0f) * 0.5f, 4));
+	int range = maxHeight - minHeight;
+	return (int)(normalized * range) + minHeight;
+}
 
 void GetBlock(Block* block,int x, int y, int z){
 
+	int SurfaceHeight = getHeight(x, z, 0.5f, 0.0f, 64, 150);
+
+	if (y <= SurfaceHeight) {
+		if (y == SurfaceHeight) {
+			block->blockID = 2;
+		}
+		else if (y >= (SurfaceHeight - 5)) {
+			block->blockID = 1;
+		}
+		block->blockstate = SetBLOCKSOLID(block->blockstate);
+	}
+	else {
 		block->blockstate = UnsetBLOCKSOLID(block->blockstate);
-		if(y == 0){
-			block->blockstate = SetBLOCKSOLID(block->blockstate);
-			block->blockID = 4;
-			return;
-		}
-
-		float noise = fnlGetNoise3D(&noise, x, z, z);
-		int surfaceHeight = (int)(height * (MAX_SURFACE_HEIGHT - MIN_SURFACE_HEIGHT) + MIN_SURFACE_HEIGHT);
-		//int Surfaceheight =  64;
-
-		if (y <= surfaceHeight) {
-			if (y == surfaceHeight){
-				block->blockID = 2;
-			}
-			else if(y >= (surfaceHeight-5)){
-				block->blockID = 1;
-			}
-			block->blockstate = SetBLOCKSOLID(block->blockstate);
-		}
-		else {
-			block->blockstate = UnsetBLOCKSOLID(block->blockstate);
-		}
+	}
 }
 
 HANDLE StartWorld()
@@ -271,22 +297,40 @@ HANDLE StartWorld()
 	InitializeCriticalSection(&JobQueueMutex);
 	InitializeConditionVariable(&WorkerSleepCondition);
 	InitFIFO(&JobQueue, MAXJOBS, sizeof(ChunkJob));
+	
+	int seed = rand();
+	int seed1 = rand();
 
-	noise = fnlCreateState();
-	noise.noise_type = FNL_NOISE_PERLIN;
-	noise.frequency = 0.03f;
-	noise.seed = rand();
-	noise.fractal_type = FNL_FRACTAL_RIDGED;
-	noise.octaves = 5;
-	noise.lacunarity = 2.0f;
-	noise.gain = 0.5f;
+	noiseStateLow = fnlCreateState();
+	noiseStateLow.noise_type = FNL_NOISE_PERLIN;
+	noiseStateLow.frequency = 0.05f;
+	noiseStateLow.seed = seed;
+	noiseStateLow.fractal_type = FNL_FRACTAL_FBM;
+	noiseStateLow.gain = 0.5f;
+	noiseStateLow.lacunarity = 1.0f;
+	noiseStateLow.octaves = 10;
+
+	noiseStateHigh = fnlCreateState();
+	noiseStateHigh.noise_type = FNL_NOISE_PERLIN;
+	noiseStateHigh.frequency = 0.05f;
+	noiseStateHigh.seed = seed1;
+	noiseStateHigh.fractal_type = FNL_FRACTAL_FBM;
+	noiseStateHigh.gain = 0.5f;
+	noiseStateHigh.lacunarity = 1.0f;
+	noiseStateHigh.octaves = 10;
+
+	noiseStateBlend = fnlCreateState();
+	noiseStateBlend.noise_type = FNL_NOISE_PERLIN;
+	noiseStateBlend.frequency = 0.5f;
+	noiseStateBlend.seed = seed;
+	noiseStateBlend.fractal_type = FNL_FRACTAL_NONE;
 
 	//Create worker threads
 	for (int i = 0; i < MAXWORKERTHREADS; i++){
 		WorkerThreads[i] = CreateThread(0, 0, ChunkJobWorkerTheads, NULL, 0, NULL);
 	}
 
-	activeList = AllocateChunkBuffers(ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE, 150*1000, 150*1000);
+	activeList = AllocateChunkBuffers(ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE, 200*1000, 200*1000);
 	ChunksToBeChecked = calloc(ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE, sizeof(ChunksCheck));
 	InitFIFO(&AvailableSpacesOnActiveList, ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE*ACTIVE_GRID_SIZE, sizeof(int));
 
