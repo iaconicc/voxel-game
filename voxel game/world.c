@@ -255,20 +255,24 @@ static DWORD WINAPI WorldThread() {
 	return 0;
 }
 
-inline static float getNoise(float x, float z, float scale, float offset){
-	float n = fnlGetNoise2D(&noiseStateLow, x * 1.0f + offset, z * 1.0f + offset);
-	float n1 = fnlGetNoise2D(&noiseStateHigh, x * 0.1f + offset, z * 0.1f + offset);
+inline static float clampf(float val, float min, float max) {
+	return val < min ? min : (val > max ? max : val);
+}
 
-	float b =fnlGetNoise2D(&noiseStateBlend, x * 0.6f + offset, z * 0.6f + offset);
-	b = powf(b,2.0f);
-	b = (b > 0.3f)? 1.0f : 0.0f;
+inline static float getNoise(float x, float z, float scale, float offset){
+	float n = fnlGetNoise2D(&noiseStateLow, x * 0.1f + offset, z * 0.1f + offset);
+	float n1 = fnlGetNoise2D(&noiseStateHigh, x * 1.0f + offset, z * 1.0f + offset);
+
+	float b =fnlGetNoise2D(&noiseStateBlend, x * 0.3f + offset, z * 0.3f + offset);
+	b = clampf((b + 1.0f) * 0.5f, 0.0f, 1.0f);
+	b = powf(b, 2.0f);
 
 	return lerp(n, n1, b);
 }
 
 inline static int getHeight(int x, int z, float scale, float offset, int minHeight, int maxHeight){
-	float noise = getNoise((x+0.1f), (z+0.1f), scale, offset);
-	float normalized = (powf((noise + 1.0f) * 0.5f, 4));
+	float noise = getNoise(x, z, scale, offset);
+	float normalized = -1.0f*(powf((noise + 1.0f) * 0.5f, 4));
 	int range = maxHeight - minHeight;
 	return (int)(normalized * range) + minHeight;
 }

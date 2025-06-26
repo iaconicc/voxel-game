@@ -31,7 +31,7 @@ typedef struct {
 typedef struct {
 	vec4 Fogcolour;
 	vec3 CamPos;
-	float FogDensity;
+	float FogStart;
 	float FogEnd;
 }FogConstants;
 
@@ -54,7 +54,7 @@ ID3D11Buffer* DXMatrixBuffer = NULL;
 FogConstants fog = {
 	{0.0f, 0.0f, 0.0f, 0.0f},
 	{0.0f, 0.0f, 0.0f},
-	0.45f,
+	0.25f,
 	400.0f,
 };
 ID3D11Buffer* FogConstantBuffer = NULL;

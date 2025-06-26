@@ -1,18 +1,17 @@
 cbuffer FogBuff{
     float4 fogcolour;
     float3 cameraPos;
-    float FogDensity;
+    float FogStart;
     float FogEnd;
 };
 
 Texture2D tex;
 SamplerState sample;
 
-float calculateExpfogFactor(float3 worldPos)
+float ComputePlanarFog(float3 worldPos)
 {
-    float CameraToPixelDist = length(worldPos - cameraPos);
-    float DistRatio = 4.0 * CameraToPixelDist / FogEnd;
-    float fogFactor = exp(-DistRatio * FogDensity);
+    float height = worldPos.y;
+    float fogFactor = saturate((FogEnd - height) / (FogEnd - FogStart));
     return fogFactor;
 }
 
@@ -20,7 +19,7 @@ float4 main(float2 textureCoords : TEXCOORD, float3 WorldPos : WORLDPOS) : SV_TA
 {   
     float4 tempcolour = tex.Sample(sample, textureCoords);
     
-    float fogFactor = calculateExpfogFactor(WorldPos);
+    float fogFactor = ComputePlanarFog(WorldPos);
     tempcolour = lerp(fogcolour, tempcolour, fogFactor);
     
     return tempcolour;
